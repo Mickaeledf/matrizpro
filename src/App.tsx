@@ -3,8 +3,14 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import Index from "./pages/Index.tsx";
-import NotFound from "./pages/NotFound.tsx";
+import { AppLayout } from "@/components/AppLayout";
+import DashboardPage from "@/pages/DashboardPage";
+import MatrizesPage from "@/pages/MatrizesPage";
+import LotesPage from "@/pages/LotesPage";
+import AnalisePage from "@/pages/AnalisePage";
+import RelatoriosPage from "@/pages/RelatoriosPage";
+import ConfiguracoesPage from "@/pages/ConfiguracoesPage";
+import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
 
@@ -15,8 +21,54 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route
+            path="/"
+            element={
+              <AppLayout>
+                <DashboardPage />
+              </AppLayout>
+            }
+          />
+          <Route
+            path="/matrizes"
+            element={
+              <AppLayout>
+                <MatrizesPage />
+              </AppLayout>
+            }
+          />
+          <Route
+            path="/lotes"
+            element={
+              <AppLayout>
+                <LotesPage />
+              </AppLayout>
+            }
+          />
+          <Route
+            path="/analise"
+            element={
+              <AppLayout>
+                <AnalisePage />
+              </AppLayout>
+            }
+          />
+          <Route
+            path="/relatorios"
+            element={
+              <AppLayout>
+                <RelatoriosPage />
+              </AppLayout>
+            }
+          />
+          <Route
+            path="/configuracoes"
+            element={
+              <AppLayout>
+                <ConfiguracoesPage />
+              </AppLayout>
+            }
+          />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
