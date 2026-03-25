@@ -96,7 +96,8 @@ export default function DashboardPage() {
                   return (
                     <div
                       key={alerta.id}
-                      className={cn("rounded-lg p-3", alertColors[alerta.severidade])}
+                      className={cn("rounded-lg p-3 cursor-pointer hover:shadow-sm transition-shadow", alertColors[alerta.severidade])}
+                      onClick={() => navigate("/lotes")}
                     >
                       <div className="flex items-start gap-2">
                         <Icon className={cn("h-4 w-4 mt-0.5 shrink-0", alertTitleColors[alerta.severidade])} />
