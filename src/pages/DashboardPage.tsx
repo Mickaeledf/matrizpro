@@ -36,10 +36,10 @@ export default function DashboardPage() {
   const custoMedio = 22.5;
 
   const kpis = [
-    { label: "Total de Leitões Ativos", value: totalLeitoesAtivos.toString(), sub: totalLeitoesAtivos === 0 ? "Nenhum lote ativo" : `${lotes.filter(l => l.status === 'Ativo').length} lotes`, icon: Layers },
-    { label: "Peso Médio", value: `${pesoMedio} kg`, sub: "Entre todos os leitões ativos", icon: Scale },
-    { label: "Margem de Lucro Estimada", value: `${margemLucro}%`, sub: "Custo estimado (Em breve)", icon: TrendingUp },
-    { label: "Custo Médio por Animal", value: `R$ ${custoMedio.toFixed(2)}`, sub: "Custo estimado (Em breve)", icon: DollarSign },
+    { label: "Total de Leitões Ativos", value: totalLeitoesAtivos.toString(), sub: totalLeitoesAtivos === 0 ? "Nenhum lote ativo" : `${lotes.filter(l => l.status === 'Ativo').length} lotes`, icon: Layers, link: "/lotes" },
+    { label: "Peso Médio", value: `${pesoMedio} kg`, sub: "Entre todos os leitões ativos", icon: Scale, link: "/analise" },
+    { label: "Margem de Lucro Estimada", value: `${margemLucro}%`, sub: "Custo estimado (Em breve)", icon: TrendingUp, link: "/analise" },
+    { label: "Custo Médio por Animal", value: `R$ ${custoMedio.toFixed(2)}`, sub: "Custo estimado (Em breve)", icon: DollarSign, link: "/analise" },
   ];
 
   return (
