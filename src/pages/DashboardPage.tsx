@@ -24,6 +24,7 @@ const alertTitleColors: Record<string, string> = {
 };
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const { matrizes, lotes, alertas } = useStore();
 
   const totalLeitoesAtivos = lotes
