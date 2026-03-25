@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { useStore } from "@/store/useStore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Layers, Scale, TrendingUp, DollarSign, AlertCircle, Syringe, Bell, TrendingDown } from "lucide-react";
@@ -23,6 +24,7 @@ const alertTitleColors: Record<string, string> = {
 };
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const { matrizes, lotes, alertas } = useStore();
 
   const totalLeitoesAtivos = lotes
@@ -34,10 +36,10 @@ export default function DashboardPage() {
   const custoMedio = 22.5;
 
   const kpis = [
-    { label: "Total de Leitões Ativos", value: totalLeitoesAtivos.toString(), sub: totalLeitoesAtivos === 0 ? "Nenhum lote ativo" : `${lotes.filter(l => l.status === 'Ativo').length} lotes`, icon: Layers },
-    { label: "Peso Médio", value: `${pesoMedio} kg`, sub: "Entre todos os leitões ativos", icon: Scale },
-    { label: "Margem de Lucro Estimada", value: `${margemLucro}%`, sub: "Custo estimado (Em breve)", icon: TrendingUp },
-    { label: "Custo Médio por Animal", value: `R$ ${custoMedio.toFixed(2)}`, sub: "Custo estimado (Em breve)", icon: DollarSign },
+    { label: "Total de Leitões Ativos", value: totalLeitoesAtivos.toString(), sub: totalLeitoesAtivos === 0 ? "Nenhum lote ativo" : `${lotes.filter(l => l.status === 'Ativo').length} lotes`, icon: Layers, link: "/lotes" },
+    { label: "Peso Médio", value: `${pesoMedio} kg`, sub: "Entre todos os leitões ativos", icon: Scale, link: "/analise" },
+    { label: "Margem de Lucro Estimada", value: `${margemLucro}%`, sub: "Custo estimado (Em breve)", icon: TrendingUp, link: "/analise" },
+    { label: "Custo Médio por Animal", value: `R$ ${custoMedio.toFixed(2)}`, sub: "Custo estimado (Em breve)", icon: DollarSign, link: "/analise" },
   ];
 
   return (
@@ -49,7 +51,11 @@ export default function DashboardPage() {
           {/* KPIs */}
           <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
             {kpis.map((kpi) => (
-              <Card key={kpi.label} className="border border-border">
+              <Card
+                key={kpi.label}
+                className="border border-border cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => navigate(kpi.link)}
+              >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-3">
                     <p className="text-xs font-medium text-muted-foreground leading-tight">{kpi.label}</p>
@@ -63,7 +69,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Chart placeholder */}
-          <Card className="border border-border">
+          <Card className="border border-border cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/analise")}>
             <CardContent className="p-6">
               <h2 className="text-lg font-bold text-foreground">Desempenho do Lote</h2>
               <p className="text-sm text-muted-foreground mb-8">Comparação do Ganho de Peso Diário Médio (GPD)</p>
@@ -90,7 +96,8 @@ export default function DashboardPage() {
                   return (
                     <div
                       key={alerta.id}
-                      className={cn("rounded-lg p-3", alertColors[alerta.severidade])}
+                      className={cn("rounded-lg p-3 cursor-pointer hover:shadow-sm transition-shadow", alertColors[alerta.severidade])}
+                      onClick={() => navigate("/lotes")}
                     >
                       <div className="flex items-start gap-2">
                         <Icon className={cn("h-4 w-4 mt-0.5 shrink-0", alertTitleColors[alerta.severidade])} />
