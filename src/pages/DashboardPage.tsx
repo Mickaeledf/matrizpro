@@ -69,7 +69,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Chart placeholder */}
-          <Card className="border border-border">
+          <Card className="border border-border cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/analise")}>
             <CardContent className="p-6">
               <h2 className="text-lg font-bold text-foreground">Desempenho do Lote</h2>
               <p className="text-sm text-muted-foreground mb-8">Comparação do Ganho de Peso Diário Médio (GPD)</p>
