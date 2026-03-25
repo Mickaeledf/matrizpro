@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { useStore } from "@/store/useStore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Layers, Scale, TrendingUp, DollarSign, AlertCircle, Syringe, Bell, TrendingDown } from "lucide-react";
