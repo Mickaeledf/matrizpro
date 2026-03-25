@@ -1,14 +1,18 @@
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "@/store/useStore";
 import { Card, CardContent } from "@/components/ui/card";
-import { Layers, Scale, TrendingUp, DollarSign, AlertCircle, Syringe, Bell, TrendingDown } from "lucide-react";
+import { Layers, Scale, TrendingUp, DollarSign, AlertCircle, Syringe, Bell, TrendingDown, Heart, Skull } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { gerarAlertasDinamicos, gerarAlertasPadrao } from "@/utils/alertGenerator";
 
 const alertIcons: Record<string, typeof AlertCircle> = {
   baixo_peso: TrendingDown,
   vacinacao: Syringe,
   pesagem: Bell,
   reforco: Syringe,
+  saude: Heart,
+  mortalidade: Skull,
 };
 
 const alertColors: Record<string, string> = {
@@ -25,21 +29,56 @@ const alertTitleColors: Record<string, string> = {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { matrizes, lotes, alertas } = useStore();
+  const { matrizes, lotes } = useStore();
 
-  const totalLeitoesAtivos = lotes
-    .filter((l) => l.status === "Ativo")
-    .reduce((acc, l) => acc + l.nascidosVivos, 0);
+  const alertas = useMemo(() => {
+    const dinamicos = gerarAlertasDinamicos(lotes, matrizes);
+    return dinamicos.length > 0 ? dinamicos : gerarAlertasPadrao();
+  }, [lotes, matrizes]);
 
-  const pesoMedio = 0;
-  const margemLucro = 28.5;
-  const custoMedio = 22.5;
+  const lotesAtivos = lotes.filter((l) => l.status === "Ativo");
+  const totalLeitoesAtivos = lotesAtivos.reduce((acc, l) => {
+    const letoesAtivos = l.leitoes?.filter(lt => lt.status === 'Ativo').length || 0;
+    return acc + (letoesAtivos > 0 ? letoesAtivos : l.nascidosVivos);
+  }, 0);
+
+  const todosLeitoes = lotes.flatMap(l => l.leitoes || []).filter(lt => lt.status === 'Ativo');
+  const pesoMedio = todosLeitoes.length > 0
+    ? (todosLeitoes.reduce((a, lt) => a + lt.pesoAtual, 0) / todosLeitoes.length).toFixed(1)
+    : "0";
+
+  const animaisCriticos = todosLeitoes.filter(lt => lt.statusSaude === 'Crítico' || lt.statusSaude === 'Em tratamento').length;
+  const animaisSaudaveis = todosLeitoes.filter(lt => lt.statusSaude === 'Saudável').length;
 
   const kpis = [
-    { label: "Total de Leitões Ativos", value: totalLeitoesAtivos.toString(), sub: totalLeitoesAtivos === 0 ? "Nenhum lote ativo" : `${lotes.filter(l => l.status === 'Ativo').length} lotes`, icon: Layers, link: "/lotes" },
-    { label: "Peso Médio", value: `${pesoMedio} kg`, sub: "Entre todos os leitões ativos", icon: Scale, link: "/analise" },
-    { label: "Margem de Lucro Estimada", value: `${margemLucro}%`, sub: "Custo estimado (Em breve)", icon: TrendingUp, link: "/analise" },
-    { label: "Custo Médio por Animal", value: `R$ ${custoMedio.toFixed(2)}`, sub: "Custo estimado (Em breve)", icon: DollarSign, link: "/analise" },
+    {
+      label: "Total de Leitões Ativos",
+      value: totalLeitoesAtivos.toString(),
+      sub: totalLeitoesAtivos === 0 ? "Nenhum lote ativo" : `${lotesAtivos.length} lote(s) ativo(s)`,
+      icon: Layers,
+      link: "/lotes",
+    },
+    {
+      label: "Peso Médio",
+      value: `${pesoMedio} kg`,
+      sub: todosLeitoes.length > 0 ? `${todosLeitoes.length} leitões pesados` : "Cadastre leitões para acompanhar",
+      icon: Scale,
+      link: "/analise",
+    },
+    {
+      label: "Saúde do Rebanho",
+      value: animaisCriticos > 0 ? `${animaisCriticos} alerta(s)` : "Estável",
+      sub: todosLeitoes.length > 0 ? `${animaisSaudaveis}/${todosLeitoes.length} saudáveis` : "Sem animais cadastrados",
+      icon: Heart,
+      link: "/lotes",
+    },
+    {
+      label: "Matrizes Ativas",
+      value: matrizes.filter(m => m.status === 'Ativa').length.toString(),
+      sub: `${matrizes.filter(m => m.statusReprodutivo === 'Gestante').length} gestante(s)`,
+      icon: TrendingUp,
+      link: "/matrizes",
+    },
   ];
 
   return (
@@ -74,7 +113,11 @@ export default function DashboardPage() {
               <h2 className="text-lg font-bold text-foreground">Desempenho do Lote</h2>
               <p className="text-sm text-muted-foreground mb-8">Comparação do Ganho de Peso Diário Médio (GPD)</p>
               <div className="flex h-48 items-center justify-center">
-                <p className="text-sm text-muted-foreground">Sem dados de desempenho para exibir.</p>
+                <p className="text-sm text-muted-foreground">
+                  {todosLeitoes.length === 0
+                    ? "Cadastre leitões com pesagens para ver o gráfico de desempenho."
+                    : "Sem dados de desempenho para exibir."}
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -88,16 +131,16 @@ export default function DashboardPage() {
                 <AlertCircle className="h-5 w-5 text-foreground" />
                 <h2 className="text-lg font-bold text-foreground">Alertas Automatizados</h2>
               </div>
-              <p className="text-sm text-muted-foreground mb-4">Notificações críticas para as operações da sua fazenda.</p>
+              <p className="text-sm text-muted-foreground mb-4">Notificações baseadas nos dados cadastrados.</p>
 
-              <div className="space-y-3">
+              <div className="space-y-3 max-h-[500px] overflow-y-auto">
                 {alertas.map((alerta) => {
                   const Icon = alertIcons[alerta.tipo] || AlertCircle;
                   return (
                     <div
                       key={alerta.id}
                       className={cn("rounded-lg p-3 cursor-pointer hover:shadow-sm transition-shadow", alertColors[alerta.severidade])}
-                      onClick={() => navigate("/lotes")}
+                      onClick={() => navigate(alerta.link || "/lotes")}
                     >
                       <div className="flex items-start gap-2">
                         <Icon className={cn("h-4 w-4 mt-0.5 shrink-0", alertTitleColors[alerta.severidade])} />
