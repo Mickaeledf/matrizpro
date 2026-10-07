@@ -1,168 +1,210 @@
-import { Lote, Matriz, Alerta, Leitao } from '@/types';
-import { differenceInDays, addDays, format } from 'date-fns';
+import { Lote, Matriz, Alerta, Configuracoes } from '@/types';
+import { diasEntre, paraISODia } from '@/lib/date';
+import { CONFIG_PADRAO } from '@/store/useStore';
+import { leitoesAbaixoDaMedia } from '@/utils/metricas';
 
-const generateId = () => crypto.randomUUID();
-
-export function gerarAlertasDinamicos(lotes: Lote[], matrizes: Matriz[]): Alerta[] {
+export function gerarAlertasDinamicos(
+  lotes: Lote[],
+  matrizes: Matriz[],
+  config: Configuracoes = CONFIG_PADRAO,
+  hoje: Date = new Date()
+): Alerta[] {
   const alertas: Alerta[] = [];
-  const hoje = new Date();
+  const dataHoje = hoje.toISOString();
 
   // --- Alertas por Lote ---
-  lotes.filter(l => l.status === 'Ativo').forEach((lote) => {
-    const matriz = matrizes.find(m => m.id === lote.matrizId);
-    const diasDesdeNascimento = differenceInDays(hoje, new Date(lote.dataParto));
+  lotes.filter((l) => l.status === 'Ativo').forEach((lote) => {
+    const linkLote = `/lotes/${lote.id}`;
+    const idadeDias = diasEntre(lote.dataParto, hoje);
 
     // Vacinas pendentes do lote
-    if (lote.vacinasPendentes) {
-      lote.vacinasPendentes.filter(v => !v.aplicada).forEach((vacina) => {
-        const diasAteVacina = differenceInDays(new Date(vacina.dataAgendada), hoje);
-        if (diasAteVacina <= 5 && diasAteVacina >= 0) {
-          alertas.push({
-            id: generateId(),
-            tipo: 'vacinacao',
-            titulo: 'Próxima Vacinação',
-            descricao: `O lote '${lote.nome}' deve receber ${vacina.nome} em ${diasAteVacina} dia(s).`,
-            severidade: diasAteVacina <= 1 ? 'critical' : 'warning',
-            data: hoje.toISOString(),
-            loteId: lote.id,
-            link: '/lotes',
-          });
-        } else if (diasAteVacina < 0) {
-          alertas.push({
-            id: generateId(),
-            tipo: 'vacinacao',
-            titulo: 'Vacina Atrasada!',
-            descricao: `O lote '${lote.nome}' está com a vacina ${vacina.nome} atrasada em ${Math.abs(diasAteVacina)} dia(s).`,
-            severidade: 'critical',
-            data: hoje.toISOString(),
-            loteId: lote.id,
-            link: '/lotes',
-          });
-        }
+    (lote.vacinasPendentes || []).filter((v) => !v.aplicada).forEach((vacina) => {
+      const diasAteVacina = diasEntre(paraISODia(hoje), vacina.dataAgendada);
+      if (diasAteVacina < 0) {
+        alertas.push({
+          id: `vacina-${vacina.id}`,
+          tipo: 'vacinacao',
+          titulo: 'Vacina Atrasada!',
+          descricao: `O lote '${lote.nome}' está com a vacina ${vacina.nome} atrasada em ${Math.abs(diasAteVacina)} dia(s).`,
+          severidade: 'critical',
+          data: dataHoje,
+          loteId: lote.id,
+          link: linkLote,
+        });
+      } else if (diasAteVacina <= config.antecedenciaVacinaDias) {
+        alertas.push({
+          id: `vacina-${vacina.id}`,
+          tipo: 'vacinacao',
+          titulo: 'Próxima Vacinação',
+          descricao:
+            diasAteVacina === 0
+              ? `O lote '${lote.nome}' deve receber ${vacina.nome} hoje.`
+              : `O lote '${lote.nome}' deve receber ${vacina.nome} em ${diasAteVacina} dia(s).`,
+          severidade: diasAteVacina <= 1 ? 'critical' : 'warning',
+          data: dataHoje,
+          loteId: lote.id,
+          link: linkLote,
+        });
+      }
+    });
+
+    // Agenda de pesagem periódica
+    const intervalo = Math.max(1, config.intervaloPesagemDias);
+    const resto = idadeDias % intervalo;
+    if (idadeDias > 0 && (resto === 0 || resto === intervalo - 1)) {
+      alertas.push({
+        id: `pesagem-${lote.id}`,
+        tipo: 'pesagem',
+        titulo: 'Agenda de Pesagem',
+        descricao: `A pesagem periódica do lote '${lote.nome}' está prevista para ${resto === 0 ? 'hoje' : 'amanhã'}.`,
+        severidade: 'info',
+        data: dataHoje,
+        loteId: lote.id,
+        link: linkLote,
       });
     }
 
-    // Agenda de pesagem semanal (a cada 7 dias)
-    if (diasDesdeNascimento > 0 && diasDesdeNascimento % 7 <= 1) {
+    // Desmame previsto
+    const diasParaDesmame = config.diasDesmame - idadeDias;
+    if (!lote.dataDesmame && diasParaDesmame <= 3) {
       alertas.push({
-        id: generateId(),
-        tipo: 'pesagem',
-        titulo: 'Agenda de Pesagem',
-        descricao: `A pesagem semanal do lote '${lote.nome}' está prevista para ${diasDesdeNascimento % 7 === 0 ? 'hoje' : 'amanhã'}.`,
-        severidade: 'info',
-        data: hoje.toISOString(),
+        id: `desmame-${lote.id}`,
+        tipo: 'desmame',
+        titulo: diasParaDesmame < 0 ? 'Desmame Atrasado' : 'Desmame Previsto',
+        descricao:
+          diasParaDesmame < 0
+            ? `O lote '${lote.nome}' passou ${Math.abs(diasParaDesmame)} dia(s) da idade de desmame (${config.diasDesmame} dias).`
+            : `O lote '${lote.nome}' atinge a idade de desmame em ${diasParaDesmame} dia(s).`,
+        severidade: diasParaDesmame < 0 ? 'warning' : 'info',
+        data: dataHoje,
         loteId: lote.id,
-        link: '/lotes',
+        link: linkLote,
       });
+    }
+
+    // Natimortalidade (nascidos mortos no parto)
+    const totalNascidos = lote.nascidosVivos + lote.nascidosMortos;
+    if (totalNascidos >= 5) {
+      const taxaNatimortos = (lote.nascidosMortos / totalNascidos) * 100;
+      if (taxaNatimortos >= config.limiteMortalidadePercent) {
+        alertas.push({
+          id: `natimortos-${lote.id}`,
+          tipo: 'mortalidade',
+          titulo: 'Alta Taxa de Natimortos',
+          descricao: `O lote '${lote.nome}' teve ${Math.round(taxaNatimortos)}% de nascidos mortos (${lote.nascidosMortos}/${totalNascidos}).`,
+          severidade: 'warning',
+          data: dataHoje,
+          loteId: lote.id,
+          link: linkLote,
+        });
+      }
     }
 
     // --- Alertas por Leitão ---
-    if (lote.leitoes && lote.leitoes.length > 0) {
-      const pesosAtivos = lote.leitoes
-        .filter(lt => lt.status === 'Ativo')
-        .map(lt => lt.pesoAtual);
+    const leitoes = lote.leitoes || [];
+    if (leitoes.length > 0) {
+      const ativos = leitoes.filter((lt) => lt.status === 'Ativo');
+      const abaixoDaMedia = leitoesAbaixoDaMedia(lote, config.limiteBaixoPesoPercent);
 
-      const pesoMedio = pesosAtivos.length > 0
-        ? pesosAtivos.reduce((a, b) => a + b, 0) / pesosAtivos.length
-        : 0;
+      ativos.forEach((leitao) => {
+        const link = `${linkLote}?leitao=${leitao.id}`;
 
-      lote.leitoes.filter(lt => lt.status === 'Ativo').forEach((leitao) => {
-        // Alerta de baixo peso (abaixo de 15% da média)
-        if (pesoMedio > 0 && leitao.pesoAtual < pesoMedio * 0.85) {
-          const percentAbaixo = Math.round((1 - leitao.pesoAtual / pesoMedio) * 100);
+        // Ganho de peso abaixo da média do lote
+        const percentAbaixo = abaixoDaMedia.get(leitao.id);
+        if (percentAbaixo !== undefined) {
           alertas.push({
-            id: generateId(),
+            id: `baixo-peso-${leitao.id}`,
             tipo: 'baixo_peso',
             titulo: 'Alerta de Baixo Ganho de Peso',
-            descricao: `Leitão ${leitao.identificador} está ${percentAbaixo}% abaixo do ganho de peso médio para sua idade.`,
-            severidade: percentAbaixo >= 20 ? 'critical' : 'warning',
-            data: hoje.toISOString(),
+            descricao: `Leitão ${leitao.identificador} (lote '${lote.nome}') está ganhando peso ${percentAbaixo}% abaixo da média do lote.`,
+            severidade: percentAbaixo >= config.limiteBaixoPesoPercent + 5 ? 'critical' : 'warning',
+            data: dataHoje,
             leitaoId: leitao.id,
             loteId: lote.id,
-            link: '/lotes',
+            link,
           });
         }
 
-        // Alerta de saúde crítica
         if (leitao.statusSaude === 'Crítico') {
           alertas.push({
-            id: generateId(),
+            id: `saude-${leitao.id}`,
             tipo: 'saude',
             titulo: 'Saúde Crítica',
             descricao: `Leitão ${leitao.identificador} do lote '${lote.nome}' está em estado crítico. Ação imediata necessária.`,
             severidade: 'critical',
-            data: hoje.toISOString(),
+            data: dataHoje,
             leitaoId: leitao.id,
             loteId: lote.id,
-            link: '/lotes',
+            link,
           });
-        }
-
-        if (leitao.statusSaude === 'Em tratamento') {
+        } else if (leitao.statusSaude === 'Em tratamento') {
           alertas.push({
-            id: generateId(),
+            id: `saude-${leitao.id}`,
             tipo: 'saude',
             titulo: 'Animal em Tratamento',
             descricao: `Leitão ${leitao.identificador} do lote '${lote.nome}' está em tratamento. Monitorar evolução.`,
             severidade: 'warning',
-            data: hoje.toISOString(),
+            data: dataHoje,
             leitaoId: leitao.id,
             loteId: lote.id,
-            link: '/lotes',
+            link,
           });
         }
       });
 
-      // Alerta de mortalidade alta
-      const mortos = lote.leitoes.filter(lt => lt.status === 'Morto').length;
-      const taxaMortalidade = mortos / lote.leitoes.length;
-      if (taxaMortalidade >= 0.1 && lote.leitoes.length >= 3) {
+      // Mortalidade após o nascimento
+      const mortos = leitoes.filter((lt) => lt.status === 'Morto').length;
+      const taxaMortalidade = (mortos / leitoes.length) * 100;
+      if (leitoes.length >= 3 && taxaMortalidade >= config.limiteMortalidadePercent) {
         alertas.push({
-          id: generateId(),
+          id: `mortalidade-${lote.id}`,
           tipo: 'mortalidade',
           titulo: 'Alta Taxa de Mortalidade',
-          descricao: `O lote '${lote.nome}' apresenta ${Math.round(taxaMortalidade * 100)}% de mortalidade (${mortos}/${lote.leitoes.length}).`,
+          descricao: `O lote '${lote.nome}' apresenta ${Math.round(taxaMortalidade)}% de mortalidade (${mortos}/${leitoes.length}).`,
           severidade: 'critical',
-          data: hoje.toISOString(),
+          data: dataHoje,
           loteId: lote.id,
-          link: '/lotes',
+          link: linkLote,
         });
       }
     }
   });
 
-  // --- Alertas por Matriz ---
-  matrizes.filter(m => m.status === 'Ativa').forEach((matriz) => {
-    if (matriz.statusReprodutivo === 'Gestante') {
-      // Gestação suína ~114 dias
-      const diasDesdeEntrada = differenceInDays(hoje, new Date(matriz.dataEntrada));
-      if (diasDesdeEntrada > 100) {
+  // --- Alertas por Matriz (baseados no ciclo reprodutivo) ---
+  matrizes.filter((m) => m.status === 'Ativa').forEach((matriz) => {
+    (matriz.ciclos || []).filter((c) => c.status === 'Em gestação').forEach((ciclo) => {
+      const diasParaParto = diasEntre(paraISODia(hoje), ciclo.dataPrevistaParto);
+      if (diasParaParto <= 7) {
         alertas.push({
-          id: generateId(),
-          tipo: 'pesagem',
-          titulo: 'Parto Próximo',
-          descricao: `A matriz '${matriz.identificador}' pode estar próxima do parto. Preparar maternidade.`,
-          severidade: 'warning',
-          data: hoje.toISOString(),
+          id: `parto-${ciclo.id}`,
+          tipo: 'parto',
+          titulo: diasParaParto < 0 ? 'Parto Atrasado' : 'Parto Próximo',
+          descricao:
+            diasParaParto < 0
+              ? `A matriz '${matriz.identificador}' passou ${Math.abs(diasParaParto)} dia(s) da data prevista de parto. Registre o parto ou verifique a gestação.`
+              : diasParaParto === 0
+                ? `A matriz '${matriz.identificador}' tem parto previsto para hoje. Preparar maternidade.`
+                : `A matriz '${matriz.identificador}' tem parto previsto em ${diasParaParto} dia(s). Preparar maternidade.`,
+          severidade: diasParaParto <= 2 ? 'critical' : 'warning',
+          data: dataHoje,
           matrizId: matriz.id,
-          link: '/matrizes',
+          link: `/matrizes/${matriz.id}`,
         });
       }
-    }
+    });
   });
 
-  // Ordenar: critical primeiro, depois warning, depois info
   const ordem = { critical: 0, warning: 1, info: 2 };
   alertas.sort((a, b) => ordem[a.severidade] - ordem[b.severidade]);
 
   return alertas;
 }
 
-// Gerar alertas padrão quando não há dados
+// Alerta exibido quando ainda não há dados
 export function gerarAlertasPadrao(): Alerta[] {
   return [
     {
-      id: '1',
+      id: 'boas-vindas',
       tipo: 'vacinacao',
       titulo: 'Bem-vindo ao MatrizPro',
       descricao: 'Comece cadastrando suas matrizes e lotes para receber alertas automáticos.',

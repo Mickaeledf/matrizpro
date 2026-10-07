@@ -6,11 +6,29 @@ export interface Matriz {
   precoAquisicao: number;
   statusReprodutivo: StatusReprodutivo;
   status: StatusMatriz;
+  ciclos: CicloReprodutivo[];
+  observacoes?: string;
   createdAt: string;
 }
 
 export type StatusReprodutivo = 'Vazia' | 'Gestante' | 'Lactante' | 'Desmamada';
 export type StatusMatriz = 'Ativa' | 'Inativa' | 'Descartada';
+
+export type TipoCobertura = 'Monta natural' | 'Inseminação artificial';
+export type StatusCiclo = 'Em gestação' | 'Parida' | 'Desmamada' | 'Falhou';
+
+export interface CicloReprodutivo {
+  id: string;
+  dataCobertura: string;
+  tipoCobertura: TipoCobertura;
+  reprodutor?: string;
+  dataPrevistaParto: string;
+  dataParto?: string;
+  dataDesmame?: string;
+  loteId?: string;
+  status: StatusCiclo;
+  observacoes?: string;
+}
 
 export interface Lote {
   id: string;
@@ -22,8 +40,9 @@ export interface Lote {
   status: StatusLote;
   leitoes: Leitao[];
   createdAt: string;
-  proximaVacinacao?: string;
-  vacinasPendentes?: VacinaPendente[];
+  dataDesmame?: string;
+  vacinasPendentes: VacinaPendente[];
+  lancamentos: Lancamento[];
 }
 
 export type StatusLote = 'Ativo' | 'Desmamado' | 'Vendido' | 'Finalizado';
@@ -33,7 +52,10 @@ export interface VacinaPendente {
   nome: string;
   dataAgendada: string;
   aplicada: boolean;
+  dataAplicacao?: string;
 }
+
+export type StatusLeitao = 'Ativo' | 'Morto' | 'Vendido';
 
 export interface Leitao {
   id: string;
@@ -42,7 +64,7 @@ export interface Leitao {
   pesoNascimento: number;
   pesoAtual: number;
   sexo: 'Macho' | 'Fêmea';
-  status: 'Ativo' | 'Morto' | 'Vendido';
+  status: StatusLeitao;
   statusSaude: StatusSaude;
   dataNascimento: string;
   pesagens: Pesagem[];
@@ -58,20 +80,54 @@ export interface Pesagem {
   data: string;
 }
 
+export type TipoRegistroSaude = 'vacinacao' | 'medicacao' | 'observacao' | 'tratamento';
+
 export interface RegistroSaude {
   id: string;
   leitaoId: string;
-  tipo: 'vacinacao' | 'medicacao' | 'observacao' | 'tratamento';
+  tipo: TipoRegistroSaude;
   descricao: string;
   data: string;
   medicamento?: string;
   dose?: string;
   veterinario?: string;
+  custo?: number;
+}
+
+export type TipoLancamento = 'custo' | 'receita';
+export type CategoriaLancamento =
+  | 'Ração'
+  | 'Medicamentos'
+  | 'Vacinas'
+  | 'Mão de obra'
+  | 'Instalações'
+  | 'Venda de leitões'
+  | 'Outros';
+
+export interface Lancamento {
+  id: string;
+  tipo: TipoLancamento;
+  categoria: CategoriaLancamento;
+  descricao: string;
+  valor: number;
+  data: string;
+}
+
+export interface Configuracoes {
+  nomeFazenda: string;
+  responsavel: string;
+  cidade: string;
+  diasGestacao: number;
+  diasDesmame: number;
+  intervaloPesagemDias: number;
+  antecedenciaVacinaDias: number;
+  limiteBaixoPesoPercent: number;
+  limiteMortalidadePercent: number;
 }
 
 export interface Alerta {
   id: string;
-  tipo: 'baixo_peso' | 'vacinacao' | 'pesagem' | 'reforco' | 'saude' | 'mortalidade';
+  tipo: 'baixo_peso' | 'vacinacao' | 'pesagem' | 'reforco' | 'saude' | 'mortalidade' | 'parto' | 'desmame';
   titulo: string;
   descricao: string;
   severidade: 'info' | 'warning' | 'critical';

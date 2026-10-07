@@ -1,8 +1,9 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 @layer base {
   :root {
@@ -105,5 +106,31 @@
 @layer utilities {
   .sidebar-gradient {
     background: linear-gradient(180deg, hsl(153 40% 22%), hsl(153 40% 16%));
+  }
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  body {
+    background: white;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  tr {
+    break-inside: avoid;
+  }
+
+  /* Tabelas largas não devem ser cortadas no PDF */
+  .relative.w-full.overflow-auto {
+    overflow: visible !important;
+  }
+
+  table {
+    font-size: 11px;
   }
 }

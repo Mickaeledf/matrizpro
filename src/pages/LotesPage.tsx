@@ -1,207 +1,162 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useStore } from "@/store/useStore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, Pencil, Trash2 } from "lucide-react";
-import { Lote, StatusLote } from "@/types";
-import { format } from "date-fns";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { PlusCircle, Pencil, Trash2, Search } from "lucide-react";
+import { Lote } from "@/types";
+import { formatarData, formatarNumero } from "@/lib/date";
+import { StatusBadge } from "@/components/StatusBadge";
+import { useConfirm } from "@/components/ConfirmDialog";
+import { LoteFormDialog } from "@/components/lote/LoteFormDialog";
+import { estatisticasLote } from "@/utils/metricas";
 
 export default function LotesPage() {
-  const { lotes, matrizes, addLote, updateLote, deleteLote } = useStore();
+  const navigate = useNavigate();
+  const { lotes, matrizes, deleteLote } = useStore();
+  const { confirmar, dialog } = useConfirm();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Lote | null>(null);
-  const [form, setForm] = useState({
-    nome: "",
-    matrizId: "",
-    dataParto: format(new Date(), "yyyy-MM-dd"),
-    nascidosVivos: 0,
-    nascidosMortos: 0,
-    status: "Ativo" as StatusLote,
-  });
+  const [busca, setBusca] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState("todos");
 
-  const openNew = () => {
-    setEditing(null);
-    setForm({
-      nome: "",
-      matrizId: matrizes[0]?.id || "",
-      dataParto: format(new Date(), "yyyy-MM-dd"),
-      nascidosVivos: 0,
-      nascidosMortos: 0,
-      status: "Ativo",
+  const filtrados = useMemo(
+    () =>
+      lotes
+        .filter((l) => l.nome.toLowerCase().includes(busca.trim().toLowerCase()))
+        .filter((l) => filtroStatus === "todos" || l.status === filtroStatus)
+        .sort((a, b) => b.dataParto.localeCompare(a.dataParto)),
+    [lotes, busca, filtroStatus]
+  );
+
+  const nomeMatriz = (id: string) => matrizes.find((m) => m.id === id)?.identificador ?? "—";
+
+  const excluir = (l: Lote) =>
+    confirmar({
+      titulo: `Excluir o lote ${l.nome}?`,
+      descricao: `Todos os ${l.leitoes.length} leitão(ões), pesagens, registros de saúde, vacinas e lançamentos financeiros do lote serão excluídos. Esta ação não pode ser desfeita.`,
+      onConfirm: () => deleteLote(l.id),
     });
-    setOpen(true);
-  };
-
-  const openEdit = (l: Lote) => {
-    setEditing(l);
-    setForm({
-      nome: l.nome,
-      matrizId: l.matrizId,
-      dataParto: l.dataParto,
-      nascidosVivos: l.nascidosVivos,
-      nascidosMortos: l.nascidosMortos,
-      status: l.status,
-    });
-    setOpen(true);
-  };
-
-  const handleSave = () => {
-    if (!form.nome) return;
-    if (editing) {
-      updateLote(editing.id, form);
-    } else {
-      addLote(form);
-    }
-    setOpen(false);
-  };
 
   return (
     <div className="animate-fade-in">
-      <h1 className="text-2xl font-bold text-foreground mb-6">Lotes</h1>
+      <h1 className="mb-6 text-2xl font-bold text-foreground">Lotes</h1>
 
       <Card className="border border-border">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-6">
+        <CardContent className="p-4 sm:p-6">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
             <div>
               <h2 className="text-lg font-bold text-foreground">Todos os Lotes</h2>
               <p className="text-sm text-muted-foreground">Gerencie e acompanhe todas as suas ninhadas de leitões.</p>
             </div>
-            <Button onClick={openNew} className="gap-2">
+            <Button
+              onClick={() => {
+                setEditing(null);
+                setOpen(true);
+              }}
+              className="gap-2"
+            >
               <PlusCircle className="h-4 w-4" />
               Adicionar Novo Lote
             </Button>
           </div>
 
+          {lotes.length > 0 && (
+            <div className="mb-4 flex flex-wrap gap-3">
+              <div className="relative w-full max-w-xs">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input placeholder="Buscar por nome" className="pl-9" value={busca} onChange={(e) => setBusca(e.target.value)} />
+              </div>
+              <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+                <SelectTrigger className="w-44">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos os status</SelectItem>
+                  <SelectItem value="Ativo">Ativo</SelectItem>
+                  <SelectItem value="Desmamado">Desmamado</SelectItem>
+                  <SelectItem value="Vendido">Vendido</SelectItem>
+                  <SelectItem value="Finalizado">Finalizado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {lotes.length === 0 ? (
             <div className="py-12 text-center">
               <p className="text-sm text-primary">Nenhum lote encontrado. Comece adicionando um novo!</p>
             </div>
+          ) : filtrados.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Nenhum lote corresponde aos filtros.</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Nome do Lote</TableHead>
+                  <TableHead>Matriz</TableHead>
                   <TableHead>Data do Parto</TableHead>
-                  <TableHead>Nascidos Vivos</TableHead>
-                  <TableHead>Nascidos Mortos</TableHead>
+                  <TableHead>Idade</TableHead>
+                  <TableHead>Vivos / Mortos</TableHead>
+                  <TableHead>Leitões Ativos</TableHead>
+                  <TableHead>Peso Médio</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {lotes.map((l) => (
-                  <TableRow key={l.id}>
-                    <TableCell className="font-medium">{l.nome}</TableCell>
-                    <TableCell>{format(new Date(l.dataParto), "dd/MM/yyyy")}</TableCell>
-                    <TableCell>{l.nascidosVivos}</TableCell>
-                    <TableCell>{l.nascidosMortos}</TableCell>
-                    <TableCell>
-                      <span className="inline-flex items-center rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-medium text-success">
-                        {l.status}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(l)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => deleteLote(l.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {filtrados.map((l) => {
+                  const est = estatisticasLote(l);
+                  return (
+                    <TableRow key={l.id} className="cursor-pointer" onClick={() => navigate(`/lotes/${l.id}`)}>
+                      <TableCell className="font-medium">{l.nome}</TableCell>
+                      <TableCell>{nomeMatriz(l.matrizId)}</TableCell>
+                      <TableCell>{formatarData(l.dataParto)}</TableCell>
+                      <TableCell>{est.idadeDias} dias</TableCell>
+                      <TableCell>
+                        {l.nascidosVivos} / {l.nascidosMortos}
+                      </TableCell>
+                      <TableCell>{est.registrados > 0 ? est.ativos : "—"}</TableCell>
+                      <TableCell>{est.ativos > 0 ? `${formatarNumero(est.pesoMedio)} kg` : "—"}</TableCell>
+                      <TableCell>
+                        <StatusBadge status={l.status} />
+                      </TableCell>
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Editar"
+                            onClick={() => {
+                              setEditing(l);
+                              setOpen(true);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" aria-label="Excluir" onClick={() => excluir(l)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
         </CardContent>
       </Card>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{editing ? "Editar Lote" : "Adicionar Novo Lote"}</DialogTitle>
-            <DialogDescription>
-              {editing ? "Atualize as informações do lote." : "Preencha as informações do novo lote."}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <Label>Nome do Lote</Label>
-              <Input
-                placeholder="Ex: Lote-001"
-                value={form.nome}
-                onChange={(e) => setForm({ ...form, nome: e.target.value })}
-              />
-            </div>
-            {matrizes.length > 0 && (
-              <div>
-                <Label>Matriz</Label>
-                <Select value={form.matrizId} onValueChange={(v) => setForm({ ...form, matrizId: v })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a matriz" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {matrizes.map((m) => (
-                      <SelectItem key={m.id} value={m.id}>{m.identificador}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            <div>
-              <Label>Data do Parto</Label>
-              <Input
-                type="date"
-                value={form.dataParto}
-                onChange={(e) => setForm({ ...form, dataParto: e.target.value })}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Nascidos Vivos</Label>
-                <Input
-                  type="number"
-                  value={form.nascidosVivos}
-                  onChange={(e) => setForm({ ...form, nascidosVivos: Number(e.target.value) })}
-                />
-              </div>
-              <div>
-                <Label>Nascidos Mortos</Label>
-                <Input
-                  type="number"
-                  value={form.nascidosMortos}
-                  onChange={(e) => setForm({ ...form, nascidosMortos: Number(e.target.value) })}
-                />
-              </div>
-            </div>
-            {editing && (
-              <div>
-                <Label>Status</Label>
-                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as StatusLote })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Ativo">Ativo</SelectItem>
-                    <SelectItem value="Desmamado">Desmamado</SelectItem>
-                    <SelectItem value="Vendido">Vendido</SelectItem>
-                    <SelectItem value="Finalizado">Finalizado</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave}>{editing ? "Salvar" : "Salvar Lote"}</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <LoteFormDialog
+        open={open}
+        onOpenChange={setOpen}
+        lote={editing}
+        onSaved={(id) => !editing && navigate(`/lotes/${id}`)}
+      />
+      {dialog}
     </div>
   );
 }
