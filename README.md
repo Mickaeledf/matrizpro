@@ -11,9 +11,24 @@ Sistema web para gestão de suinocultura: matrizes reprodutoras, ciclos reprodut
 - **Relatórios** — geral, por lote e financeiro, com geração de PDF (impressão do navegador) e exportação CSV.
 - **Configurações** — dados da fazenda, parâmetros de manejo/alertas e backup/restauração em JSON.
 
+## Login (Supabase)
+
+O acesso ao sistema exige login com email e senha, autenticado pelo Supabase. Os dados de cada usuário (matrizes, lotes, configurações) ficam salvos no banco do Supabase e são sincronizados automaticamente; cada usuário só enxerga os próprios dados (Row Level Security).
+
+Projeto Supabase: `matrizpro` (região São Paulo). Configuração já aplicada:
+
+- Credenciais públicas em [`src/lib/supabase.ts`](src/lib/supabase.ts) (Project URL + publishable key).
+- Tabelas e políticas de segurança: [`supabase/migrations/001_esquema_inicial.sql`](supabase/migrations/001_esquema_inicial.sql) (já executado no SQL Editor).
+- Authentication → Email: **Confirm email** ativado; senha com mínimo de 8 caracteres, letras e números.
+- Authentication → URL Configuration: Site URL `http://localhost:8080` e Redirect URL `http://localhost:8080/**`.
+
+Ao publicar o app, adicione o endereço publicado em **Redirect URLs** (e troque o **Site URL**).
+
+O serviço de email padrão do Supabase envia poucos emails por hora e só entrega para membros da equipe do projeto. Para cadastrar usuários reais, configure um SMTP próprio em **Authentication → Emails → SMTP Settings**.
+
 ## Armazenamento
 
-Os dados ficam no `localStorage` do navegador (chave `matrizpro-storage`, com versionamento e migração automática). Use **Configurações → Exportar backup** regularmente.
+Os dados ficam no Supabase (nuvem) e o navegador guarda uma cópia local para abrir mais rápido. **Configurações → Exportar backup** gera uma cópia extra em arquivo JSON.
 
 ## Desenvolvimento
 

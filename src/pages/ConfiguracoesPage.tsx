@@ -187,8 +187,8 @@ export default function ConfiguracoesPage() {
             <h2 className="text-lg font-bold text-foreground">Backup dos Dados</h2>
           </div>
           <p className="text-sm text-muted-foreground">
-            Os dados ficam salvos apenas neste navegador. Exporte um backup regularmente para não perder informações
-            ao limpar o navegador ou trocar de computador.
+            Seus dados ficam salvos na nuvem (Supabase) e aparecem em qualquer computador ao entrar com sua conta.
+            O backup em arquivo é uma cópia extra para guardar com você.
           </p>
           <div className="flex flex-wrap gap-2">
             <Button className="gap-2" onClick={exportar}>
@@ -204,7 +204,7 @@ export default function ConfiguracoesPage() {
               onClick={() =>
                 confirmar({
                   titulo: "Apagar todos os dados?",
-                  descricao: "Todas as matrizes, lotes, leitões e configurações serão apagados deste navegador. Exporte um backup antes, se precisar.",
+                  descricao: "Todas as matrizes, lotes, leitões e configurações da sua conta serão apagados, inclusive da nuvem. Exporte um backup antes, se precisar.",
                   confirmar: "Apagar tudo",
                   onConfirm: () => {
                     resetarDados();

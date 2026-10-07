@@ -5,6 +5,9 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppLayout } from "@/components/AppLayout";
+import { RotaProtegida } from "@/components/RotaProtegida";
+import { AuthProvider } from "@/contexts/AuthProvider";
+import LoginPage from "@/pages/LoginPage";
 import NotFound from "@/pages/NotFound";
 
 // Páginas carregadas sob demanda para reduzir o bundle inicial
@@ -25,19 +28,29 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route element={<AppLayout />}>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/matrizes" element={<MatrizesPage />} />
-            <Route path="/matrizes/:id" element={<MatrizDetalhePage />} />
-            <Route path="/lotes" element={<LotesPage />} />
-            <Route path="/lotes/:id" element={<LoteDetalhePage />} />
-            <Route path="/analise" element={<AnalisePage />} />
-            <Route path="/relatorios" element={<RelatoriosPage />} />
-            <Route path="/configuracoes" element={<ConfiguracoesPage />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            {/* Todas as telas do sistema exigem login */}
+            <Route
+              element={
+                <RotaProtegida>
+                  <AppLayout />
+                </RotaProtegida>
+              }
+            >
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/matrizes" element={<MatrizesPage />} />
+              <Route path="/matrizes/:id" element={<MatrizDetalhePage />} />
+              <Route path="/lotes" element={<LotesPage />} />
+              <Route path="/lotes/:id" element={<LoteDetalhePage />} />
+              <Route path="/analise" element={<AnalisePage />} />
+              <Route path="/relatorios" element={<RelatoriosPage />} />
+              <Route path="/configuracoes" element={<ConfiguracoesPage />} />
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

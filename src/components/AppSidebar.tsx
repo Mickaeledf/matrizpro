@@ -1,7 +1,16 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, GitBranch, Layers, BarChart3, FileText, Settings } from "lucide-react";
+import { LayoutDashboard, GitBranch, Layers, BarChart3, FileText, Settings, LogOut, Cloud, CloudOff, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/store/useStore";
+import { useAuth } from "@/contexts/auth";
+import { useStatusSincronizacao } from "@/lib/sincronizacao";
+
+const rotuloStatus = {
+  carregando: "Carregando…",
+  salvando: "Salvando…",
+  sincronizado: "Salvo na nuvem",
+  erro: "Erro ao sincronizar",
+} as const;
 
 const navItems = [
   { to: "/", label: "Painel", icon: LayoutDashboard },
@@ -17,6 +26,9 @@ const estaAtivo = (pathname: string, to: string) =>
 export function AppSidebar({ onNavigate, className }: { onNavigate?: () => void; className?: string }) {
   const location = useLocation();
   const nomeFazenda = useStore((s) => s.configuracoes.nomeFazenda);
+  const { user, sair } = useAuth();
+  const { status, erro } = useStatusSincronizacao();
+  const IconeStatus = status === "erro" ? CloudOff : status === "sincronizado" ? Cloud : Loader2;
 
   const linkClass = (ativo: boolean) =>
     cn(
@@ -59,6 +71,34 @@ export function AppSidebar({ onNavigate, className }: { onNavigate?: () => void;
           <Settings className="h-4 w-4" />
           Configurações
         </NavLink>
+        {user?.email && (
+          <p className="mt-3 truncate px-3 text-xs text-sidebar-custom-fg/60" title={user.email}>
+            {user.email}
+          </p>
+        )}
+        {user && (
+          <p
+            className={cn(
+              "mt-1 flex items-center gap-1.5 px-3 text-xs",
+              status === "erro" ? "text-red-300" : "text-sidebar-custom-fg/60"
+            )}
+            title={erro ?? undefined}
+          >
+            <IconeStatus className={cn("h-3.5 w-3.5", (status === "salvando" || status === "carregando") && "animate-spin")} />
+            {rotuloStatus[status]}
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            onNavigate?.();
+            sair();
+          }}
+          className={cn(linkClass(false), "mt-1 w-full")}
+        >
+          <LogOut className="h-4 w-4" />
+          Sair
+        </button>
       </div>
     </aside>
   );

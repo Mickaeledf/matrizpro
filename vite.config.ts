@@ -13,6 +13,17 @@ export default defineConfig(({ mode }) => ({
     },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  build: {
+    rollupOptions: {
+      output: {
+        // Bibliotecas grandes em arquivos separados (melhor cache entre versões)
+        manualChunks: {
+          supabase: ["@supabase/supabase-js"],
+          react: ["react", "react-dom", "react-router-dom"],
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

@@ -1,12 +1,31 @@
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
-import { GitBranch, Menu } from "lucide-react";
+import { GitBranch, Loader2, Menu } from "lucide-react";
 import { AppSidebar } from "./AppSidebar";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { useAuth } from "@/contexts/auth";
+import { iniciarSincronizacao } from "@/lib/sincronizacao";
+
+const Carregando = ({ texto }: { texto: string }) => (
+  <div className="flex flex-col items-center justify-center gap-3 py-16 text-sm text-muted-foreground">
+    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+    {texto}
+  </div>
+);
 
 export function AppLayout() {
   const [menuAberto, setMenuAberto] = useState(false);
+  const { user } = useAuth();
+  const userId = user?.id;
+  const [dadosProntos, setDadosProntos] = useState(false);
+
+  // Carrega os dados do usuário da nuvem e mantém tudo sincronizado
+  useEffect(() => {
+    if (!userId) return;
+    setDadosProntos(false);
+    return iniciarSincronizacao(userId, () => setDadosProntos(true));
+  }, [userId]);
 
   return (
     <div className="flex h-screen flex-col overflow-hidden md:flex-row print:block print:h-auto print:overflow-visible">
@@ -35,9 +54,13 @@ export function AppLayout() {
       </Sheet>
 
       <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-6 lg:p-8 print:overflow-visible print:bg-white print:p-0">
-        <Suspense fallback={<p className="py-16 text-center text-sm text-muted-foreground">Carregando…</p>}>
-          <Outlet />
-        </Suspense>
+        {dadosProntos ? (
+          <Suspense fallback={<Carregando texto="Carregando…" />}>
+            <Outlet />
+          </Suspense>
+        ) : (
+          <Carregando texto="Carregando seus dados…" />
+        )}
       </main>
     </div>
   );
