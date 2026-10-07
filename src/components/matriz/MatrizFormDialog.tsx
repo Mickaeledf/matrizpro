@@ -14,6 +14,7 @@ import { campoDataNaoFutura, decimalNaoNegativo, ErrosFormulario, textoObrigator
 const schema = z
   .object({
     identificador: textoObrigatorio("Informe o identificador."),
+    raca: z.string().optional(),
     dataNascimento: campoDataNaoFutura,
     dataEntrada: campoDataNaoFutura,
     precoAquisicao: decimalNaoNegativo,
@@ -28,6 +29,7 @@ const schema = z
 
 const formVazio = () => ({
   identificador: "",
+  raca: "",
   dataNascimento: hojeISO(),
   dataEntrada: hojeISO(),
   precoAquisicao: "0",
@@ -58,6 +60,7 @@ export function MatrizFormDialog({
       matriz
         ? {
             identificador: matriz.identificador,
+            raca: matriz.raca || "",
             dataNascimento: matriz.dataNascimento,
             dataEntrada: matriz.dataEntrada,
             precoAquisicao: String(matriz.precoAquisicao),
@@ -97,6 +100,7 @@ export function MatrizFormDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Campo label="Identificador (Brinco/Tatuagem)" erro={erros.identificador}>
             <Input
               placeholder="Ex: M-042"
@@ -104,6 +108,10 @@ export function MatrizFormDialog({
               onChange={(e) => setForm({ ...form, identificador: e.target.value })}
             />
           </Campo>
+            <Campo label="Raça / Linhagem">
+              <Input placeholder="Ex: F1 (LW x LD)" value={form.raca} onChange={(e) => setForm({ ...form, raca: e.target.value })} />
+            </Campo>
+          </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Campo label="Data de Nascimento" erro={erros.dataNascimento}>
               <Input

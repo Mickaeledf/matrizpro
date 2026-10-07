@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { supabase } from "@/lib/supabase";
 import { CONFIG_PADRAO, DadosApp, normalizarDados, useStore } from "@/store/useStore";
-import { Lote, Matriz } from "@/types";
+import { Lote, Matriz, Reprodutor } from "@/types";
 
 /**
  * Sincronização entre o estado local (Zustand) e o banco do Supabase.
@@ -42,11 +42,19 @@ export function definirDonoLocal(userId: string | null) {
   }
 }
 
+/** Coleções sincronizadas: cada documento vira uma linha (colunas extras ajudam em consultas). */
+const COLECOES = {
+  matrizes: (m: Matriz) => ({ identificador: m.identificador }),
+  reprodutores: (r: Reprodutor) => ({ identificador: r.identificador }),
+  lotes: (l: Lote) => ({ nome: l.nome, matriz_id: l.matrizId || null }),
+} as const;
+
+type Colecao = keyof typeof COLECOES;
+const NOMES_COLECOES = Object.keys(COLECOES) as Colecao[];
+
 export interface Mudancas {
-  matrizesSalvar: Matriz[];
-  matrizesExcluir: string[];
-  lotesSalvar: Lote[];
-  lotesExcluir: string[];
+  salvar: { matrizes: Matriz[]; reprodutores: Reprodutor[]; lotes: Lote[] };
+  excluir: Record<Colecao, string[]>;
   configuracoes: boolean;
 }
 
@@ -64,54 +72,45 @@ export function calcularMudancas(anterior: DadosApp, atual: DadosApp): Mudancas 
     };
   };
   const m = diff(anterior.matrizes, atual.matrizes);
+  const r = diff(anterior.reprodutores, atual.reprodutores);
   const l = diff(anterior.lotes, atual.lotes);
   return {
-    matrizesSalvar: m.salvar,
-    matrizesExcluir: m.excluir,
-    lotesSalvar: l.salvar,
-    lotesExcluir: l.excluir,
+    salvar: { matrizes: m.salvar, reprodutores: r.salvar, lotes: l.salvar },
+    excluir: { matrizes: m.excluir, reprodutores: r.excluir, lotes: l.excluir },
     configuracoes: anterior.configuracoes !== atual.configuracoes,
   };
 }
 
 export const semMudancas = (m: Mudancas) =>
-  m.matrizesSalvar.length === 0 &&
-  m.matrizesExcluir.length === 0 &&
-  m.lotesSalvar.length === 0 &&
-  m.lotesExcluir.length === 0 &&
-  !m.configuracoes;
+  NOMES_COLECOES.every((c) => m.salvar[c].length === 0 && m.excluir[c].length === 0) && !m.configuracoes;
+
+/** Divide uma lista em pedaços (envios grandes vão em várias requisições menores). */
+const emPedacos = <T,>(lista: T[], tamanho: number): T[][] => {
+  const pedacos: T[][] = [];
+  for (let i = 0; i < lista.length; i += tamanho) pedacos.push(lista.slice(i, i + tamanho));
+  return pedacos;
+};
 
 /** Grava as mudanças no banco. Lança erro se alguma operação falhar. */
 export async function enviarMudancas(userId: string, mudancas: Mudancas, dados: DadosApp) {
   const operacoes: PromiseLike<{ error: { message: string } | null }>[] = [];
 
-  if (mudancas.matrizesSalvar.length > 0) {
-    operacoes.push(
-      supabase.from("matrizes").upsert(
-        mudancas.matrizesSalvar.map((m) => ({ user_id: userId, id: m.id, identificador: m.identificador, dados: m })),
-        { onConflict: "user_id,id" }
-      )
-    );
-  }
-  if (mudancas.matrizesExcluir.length > 0) {
-    operacoes.push(supabase.from("matrizes").delete().eq("user_id", userId).in("id", mudancas.matrizesExcluir));
-  }
-  if (mudancas.lotesSalvar.length > 0) {
-    operacoes.push(
-      supabase.from("lotes").upsert(
-        mudancas.lotesSalvar.map((l) => ({
-          user_id: userId,
-          id: l.id,
-          nome: l.nome,
-          matriz_id: l.matrizId || null,
-          dados: l,
-        })),
-        { onConflict: "user_id,id" }
-      )
-    );
-  }
-  if (mudancas.lotesExcluir.length > 0) {
-    operacoes.push(supabase.from("lotes").delete().eq("user_id", userId).in("id", mudancas.lotesExcluir));
+  for (const colecao of NOMES_COLECOES) {
+    const documentos = mudancas.salvar[colecao] as { id: string }[];
+    const colunas = COLECOES[colecao] as (doc: { id: string }) => Record<string, unknown>;
+    for (const pedaco of emPedacos(documentos, 100)) {
+      operacoes.push(
+        supabase
+          .from(colecao)
+          .upsert(
+            pedaco.map((doc) => ({ user_id: userId, id: doc.id, ...colunas(doc), dados: doc })),
+            { onConflict: "user_id,id" }
+          )
+      );
+    }
+    for (const pedaco of emPedacos(mudancas.excluir[colecao], 200)) {
+      operacoes.push(supabase.from(colecao).delete().eq("user_id", userId).in("id", pedaco));
+    }
   }
   if (mudancas.configuracoes) {
     operacoes.push(
@@ -124,32 +123,43 @@ export async function enviarMudancas(userId: string, mudancas: Mudancas, dados: 
   if (falha?.error) throw new Error(falha.error.message);
 }
 
+/** Baixa todas as linhas de uma tabela, de 1000 em 1000 (limite por consulta do Supabase). */
+async function baixarTabela(tabela: Colecao): Promise<unknown[]> {
+  const TAMANHO_PAGINA = 1000;
+  const documentos: unknown[] = [];
+  for (let inicio = 0; ; inicio += TAMANHO_PAGINA) {
+    const { data, error } = await supabase
+      .from(tabela)
+      .select("dados")
+      .order("id")
+      .range(inicio, inicio + TAMANHO_PAGINA - 1);
+    if (error) throw new Error(error.message);
+    const linhas = (data ?? []) as { dados: unknown }[];
+    documentos.push(...linhas.map((l) => l.dados));
+    if (linhas.length < TAMANHO_PAGINA) return documentos;
+  }
+}
+
 /** Baixa todos os dados do usuário. Retorna null se a conta ainda não tem nada salvo. */
 export async function baixarDados(): Promise<DadosApp | null> {
-  const [matrizes, lotes, configuracoes] = await Promise.all([
-    supabase.from("matrizes").select("dados"),
-    supabase.from("lotes").select("dados"),
+  const [matrizes, reprodutores, lotes, configuracoes] = await Promise.all([
+    baixarTabela("matrizes"),
+    baixarTabela("reprodutores"),
+    baixarTabela("lotes"),
     supabase.from("configuracoes").select("dados").maybeSingle(),
   ]);
-  const erro = matrizes.error ?? lotes.error ?? configuracoes.error;
-  if (erro) throw new Error(erro.message);
+  if (configuracoes.error) throw new Error(configuracoes.error.message);
 
-  const linhasMatrizes = matrizes.data ?? [];
-  const linhasLotes = lotes.data ?? [];
-  if (linhasMatrizes.length === 0 && linhasLotes.length === 0 && !configuracoes.data) return null;
+  if (matrizes.length === 0 && reprodutores.length === 0 && lotes.length === 0 && !configuracoes.data) return null;
 
-  return normalizarDados({
-    matrizes: linhasMatrizes.map((r) => r.dados),
-    lotes: linhasLotes.map((r) => r.dados),
-    configuracoes: configuracoes.data?.dados,
-  });
+  return normalizarDados({ matrizes, reprodutores, lotes, configuracoes: configuracoes.data?.dados });
 }
 
 const mensagemErro = (e: unknown) => (e instanceof Error ? e.message : "Erro desconhecido");
 
 const dadosAtuais = (): DadosApp => {
   const s = useStore.getState();
-  return { matrizes: s.matrizes, lotes: s.lotes, configuracoes: s.configuracoes };
+  return { matrizes: s.matrizes, reprodutores: s.reprodutores, lotes: s.lotes, configuracoes: s.configuracoes };
 };
 
 /** Controle da sincronização ativa (uma por vez). */
@@ -208,7 +218,7 @@ export function iniciarSincronizacao(userId: string, aoCarregar: () => void) {
       } else {
         // Primeira vez desta conta: envia o que já existia neste navegador
         const local = dadosAtuais();
-        const mudancas = calcularMudancas({ matrizes: [], lotes: [], configuracoes: CONFIG_PADRAO }, local);
+        const mudancas = calcularMudancas({ matrizes: [], reprodutores: [], lotes: [], configuracoes: CONFIG_PADRAO }, local);
         if (!semMudancas(mudancas)) await enviarMudancas(userId, mudancas, local);
       }
       snapshot = dadosAtuais();

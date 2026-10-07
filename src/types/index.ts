@@ -6,9 +6,12 @@ export interface Matriz {
   precoAquisicao: number;
   statusReprodutivo: StatusReprodutivo;
   status: StatusMatriz;
+  raca?: string;
   ciclos: CicloReprodutivo[];
   observacoes?: string;
   createdAt: string;
+  /** 'exemplo' = registro criado pela base de demonstração */
+  origem?: 'exemplo';
 }
 
 export type StatusReprodutivo = 'Vazia' | 'Gestante' | 'Lactante' | 'Desmamada';
@@ -21,7 +24,9 @@ export interface CicloReprodutivo {
   id: string;
   dataCobertura: string;
   tipoCobertura: TipoCobertura;
+  /** Identificador do reprodutor (cachaço) ou descrição do sêmen */
   reprodutor?: string;
+  reprodutorId?: string;
   dataPrevistaParto: string;
   dataParto?: string;
   dataDesmame?: string;
@@ -43,6 +48,22 @@ export interface Lote {
   dataDesmame?: string;
   vacinasPendentes: VacinaPendente[];
   lancamentos: Lancamento[];
+  origem?: 'exemplo';
+}
+
+export type StatusReprodutor = 'Ativo' | 'Inativo' | 'Descartado';
+
+/** Macho reprodutor (cachaço) */
+export interface Reprodutor {
+  id: string;
+  identificador: string;
+  raca: string;
+  dataNascimento: string;
+  dataEntrada: string;
+  status: StatusReprodutor;
+  observacoes?: string;
+  createdAt: string;
+  origem?: 'exemplo';
 }
 
 export type StatusLote = 'Ativo' | 'Desmamado' | 'Vendido' | 'Finalizado';

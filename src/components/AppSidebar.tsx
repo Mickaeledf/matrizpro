@@ -1,9 +1,10 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, GitBranch, Layers, BarChart3, FileText, Settings, LogOut, Cloud, CloudOff, Loader2 } from "lucide-react";
+import { LayoutDashboard, GitBranch, Layers, BarChart3, FileText, Settings, LogOut, Cloud, CloudOff, Loader2, Dna, LifeBuoy, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/store/useStore";
 import { useAuth } from "@/contexts/auth";
 import { useStatusSincronizacao } from "@/lib/sincronizacao";
+import { useAssinatura } from "@/lib/assinatura";
 
 const rotuloStatus = {
   carregando: "Carregando…",
@@ -15,6 +16,7 @@ const rotuloStatus = {
 const navItems = [
   { to: "/", label: "Painel", icon: LayoutDashboard },
   { to: "/matrizes", label: "Matrizes", icon: GitBranch },
+  { to: "/reprodutores", label: "Reprodutores", icon: Dna },
   { to: "/lotes", label: "Lotes", icon: Layers },
   { to: "/analise", label: "Análise", icon: BarChart3 },
   { to: "/relatorios", label: "Relatórios", icon: FileText },
@@ -29,6 +31,7 @@ export function AppSidebar({ onNavigate, className }: { onNavigate?: () => void;
   const { user, sair } = useAuth();
   const { status, erro } = useStatusSincronizacao();
   const IconeStatus = status === "erro" ? CloudOff : status === "sincronizado" ? Cloud : Loader2;
+  const admin = useAssinatura((s) => s.admin);
 
   const linkClass = (ativo: boolean) =>
     cn(
@@ -48,7 +51,7 @@ export function AppSidebar({ onNavigate, className }: { onNavigate?: () => void;
         {nomeFazenda && <p className="mt-1 truncate text-xs text-sidebar-custom-fg/70">{nomeFazenda}</p>}
       </div>
 
-      <nav className="flex-1 space-y-1 px-3">
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3">
         {navItems.map((item) => (
           <NavLink
             key={item.to}
@@ -68,6 +71,20 @@ export function AppSidebar({ onNavigate, className }: { onNavigate?: () => void;
           onClick={onNavigate}
           className={linkClass(estaAtivo(location.pathname, "/configuracoes"))}
         >
+        <NavLink to="/suporte" onClick={onNavigate} className={linkClass(estaAtivo(location.pathname, "/suporte"))}>
+          <LifeBuoy className="h-4 w-4" />
+          Suporte
+        </NavLink>
+        {admin && (
+          <NavLink
+            to="/assinantes"
+            onClick={onNavigate}
+            className={linkClass(estaAtivo(location.pathname, "/assinantes"))}
+          >
+            <Users className="h-4 w-4" />
+            Assinantes
+          </NavLink>
+        )}
           <Settings className="h-4 w-4" />
           Configurações
         </NavLink>

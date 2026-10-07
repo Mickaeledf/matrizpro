@@ -12,6 +12,10 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { diasEntre, formatarMoeda, formatarNumero } from "@/lib/date";
 import { estatisticasLote } from "@/utils/metricas";
 import { cn } from "@/lib/utils";
+import { Paginacao, usePaginacao } from "@/components/Paginacao";
+
+/** Os gráficos mostram só os lotes mais recentes (com centenas de lotes as barras ficariam ilegíveis). */
+const MAX_LOTES_GRAFICO = 24;
 
 const Vazio = ({ children }: { children: React.ReactNode }) => (
   <div className="flex h-64 items-center justify-center">
@@ -42,7 +46,7 @@ export default function AnalisePage() {
 
   const linhas = useMemo(() => lotesFiltrados.map((l) => ({ lote: l, est: estatisticasLote(l) })), [lotesFiltrados]);
 
-  const dadosDesempenho = linhas.map(({ lote, est }) => ({
+  const dadosDesempenho = linhas.slice(-MAX_LOTES_GRAFICO).map(({ lote, est }) => ({
     lote: lote.nome,
     pesoMedio: Number(est.pesoMedio.toFixed(2)),
     gpd: est.gpdMedio !== null ? Math.round(est.gpdMedio * 1000) : 0,
@@ -50,7 +54,14 @@ export default function AnalisePage() {
   }));
 
   // --- Crescimento individual ---
-  const lotesComPesagem = lotes.filter((l) => l.leitoes.some((lt) => lt.pesagens.length > 0));
+  const lotesComPesagem = useMemo(
+    () =>
+      lotes
+        .filter((l) => l.leitoes.some((lt) => lt.pesagens.length > 0))
+        .sort((a, b) => b.dataParto.localeCompare(a.dataParto))
+        .slice(0, 60),
+    [lotes]
+  );
   const loteSelecionado = lotes.find((l) => l.id === loteCrescimento) ?? lotesComPesagem[0];
 
   const crescimento = useMemo(() => {
@@ -92,6 +103,7 @@ export default function AnalisePage() {
 
   // --- Custos e saúde ---
   const dadosCustos = linhas
+    .slice(-MAX_LOTES_GRAFICO)
     .filter(({ est }) => est.totalCustos > 0 || est.totalReceitas > 0)
     .map(({ lote, est }) => ({ lote: lote.nome, custos: est.totalCustos, receitas: est.totalReceitas }));
 
@@ -105,6 +117,11 @@ export default function AnalisePage() {
       });
     return Object.entries(contagem).map(([status, quantidade]) => ({ status, quantidade }));
   }, [lotesFiltrados]);
+
+  // Tabelas em ordem do mais recente para o mais antigo, paginadas
+  const linhasRecentes = useMemo(() => [...linhas].reverse(), [linhas]);
+  const pagDesempenho = usePaginacao(linhasRecentes, 30);
+  const pagCustos = usePaginacao(linhasRecentes, 30);
 
   const totalCustos = linhas.reduce((a, { est }) => a + est.totalCustos, 0);
   const totalReceitas = linhas.reduce((a, { est }) => a + est.totalReceitas, 0);
@@ -146,7 +163,7 @@ export default function AnalisePage() {
             <CardContent className="p-4 sm:p-6">
               <h2 className="text-lg font-bold text-foreground">Comparativo de Desempenho entre Lotes</h2>
               <p className="mb-6 text-sm text-muted-foreground">
-                Peso médio, ganho de peso diário (GPD) e taxa de mortalidade.
+                Peso médio, ganho de peso diário (GPD) e taxa de mortalidade. Os gráficos mostram até os 24 lotes mais recentes do filtro.
               </p>
               {linhas.length === 0 ? (
                 <Vazio>Sem dados de lotes para exibir. Adicione lotes e leitões para começar a análise.</Vazio>
@@ -202,7 +219,7 @@ export default function AnalisePage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {linhas.map(({ lote, est }) => (
+                    {pagDesempenho.visiveis.map(({ lote, est }) => (
                       <TableRow key={lote.id} className="cursor-pointer" onClick={() => navigate(`/lotes/${lote.id}`)}>
                         <TableCell className="font-medium">{lote.nome}</TableCell>
                         <TableCell>
@@ -221,6 +238,7 @@ export default function AnalisePage() {
                     ))}
                   </TableBody>
                 </Table>
+                <Paginacao {...pagDesempenho} />
               </CardContent>
             </Card>
           )}
@@ -358,7 +376,7 @@ export default function AnalisePage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {linhas.map(({ lote, est }) => (
+                    {pagCustos.visiveis.map(({ lote, est }) => (
                       <TableRow key={lote.id}>
                         <TableCell className="font-medium">{lote.nome}</TableCell>
                         <TableCell className="text-right">{formatarMoeda(est.totalCustos)}</TableCell>
@@ -372,6 +390,7 @@ export default function AnalisePage() {
                     ))}
                   </TableBody>
                 </Table>
+                <Paginacao {...pagCustos} />
               </CardContent>
             </Card>
           )}

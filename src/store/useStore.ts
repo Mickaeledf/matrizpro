@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, PersistStorage, StorageValue } from 'zustand/middleware';
 import {
   Matriz,
   Lote,
@@ -12,6 +12,7 @@ import {
   Lancamento,
   Configuracoes,
   TipoCobertura,
+  Reprodutor,
 } from '@/types';
 import { hojeISO, somarDias } from '@/lib/date';
 
@@ -29,11 +30,13 @@ export const CONFIG_PADRAO: Configuracoes = {
 
 export interface DadosApp {
   matrizes: Matriz[];
+  reprodutores: Reprodutor[];
   lotes: Lote[];
   configuracoes: Configuracoes;
 }
 
 type NovaMatriz = Omit<Matriz, 'id' | 'createdAt' | 'ciclos'>;
+type NovoReprodutor = Omit<Reprodutor, 'id' | 'createdAt'>;
 type NovoLote = Omit<Lote, 'id' | 'createdAt' | 'leitoes' | 'vacinasPendentes' | 'lancamentos'>;
 type NovoLeitao = Omit<Leitao, 'id' | 'loteId' | 'pesagens' | 'registrosSaude' | 'pesoAtual'> & { pesoAtual?: number };
 
@@ -42,9 +45,19 @@ interface AppState extends DadosApp {
   updateMatriz: (id: string, data: Partial<Matriz>) => void;
   deleteMatriz: (id: string) => void;
 
+  addReprodutor: (reprodutor: NovoReprodutor) => string;
+  updateReprodutor: (id: string, data: Partial<Reprodutor>) => void;
+  deleteReprodutor: (id: string) => void;
+
   registrarCobertura: (
     matrizId: string,
-    dados: { dataCobertura: string; tipoCobertura: TipoCobertura; reprodutor?: string; observacoes?: string }
+    dados: {
+      dataCobertura: string;
+      tipoCobertura: TipoCobertura;
+      reprodutor?: string;
+      reprodutorId?: string;
+      observacoes?: string;
+    }
   ) => void;
   registrarParto: (
     matrizId: string,
@@ -77,6 +90,8 @@ interface AppState extends DadosApp {
   updateConfiguracoes: (data: Partial<Configuracoes>) => void;
   importarDados: (dados: unknown) => void;
   resetarDados: () => void;
+  /** Remove somente os registros da base de demonstração (origem = "exemplo") */
+  removerDadosExemplo: () => void;
 }
 
 const generateId = () => crypto.randomUUID();
@@ -101,6 +116,12 @@ export function normalizarDados(bruto: unknown): DadosApp {
     ciclos: asArray<CicloReprodutivo>(m.ciclos),
   }));
 
+  const reprodutores = asArray<Reprodutor>(dados.reprodutores).map((r) => ({
+    ...r,
+    raca: r.raca || '',
+    status: r.status || ('Ativo' as const),
+  }));
+
   const lotes = asArray<Lote>(dados.lotes).map((l) => ({
     ...l,
     matrizId: l.matrizId || '',
@@ -122,7 +143,7 @@ export function normalizarDados(bruto: unknown): DadosApp {
     ...((dados.configuracoes as Partial<Configuracoes>) || {}),
   };
 
-  return { matrizes, lotes, configuracoes };
+  return { matrizes, reprodutores, lotes, configuracoes };
 }
 
 const mapLote = (lotes: Lote[], loteId: string, fn: (l: Lote) => Lote) =>
@@ -154,7 +175,49 @@ const recalcularPesoAtual = (lt: Leitao): Leitao => {
   return { ...lt, pesagens: ordenadas, pesoAtual: ultima ? ultima.peso : lt.pesoNascimento };
 };
 
-const estadoInicial: DadosApp = { matrizes: [], lotes: [], configuracoes: CONFIG_PADRAO };
+const estadoInicial: DadosApp = { matrizes: [], reprodutores: [], lotes: [], configuracoes: CONFIG_PADRAO };
+
+/** Acima deste volume o cache local é desligado (a nuvem continua sendo a fonte dos dados). */
+const LIMITE_LEITOES_CACHE_LOCAL = 3000;
+
+/**
+ * Armazenamento local tolerante a falhas: se os dados forem grandes demais para o
+ * navegador (limite ~5 MB do localStorage) ou o armazenamento estiver bloqueado,
+ * simplesmente deixa de usar o cache, sem quebrar o app.
+ */
+const armazenamentoSeguro: PersistStorage<DadosApp> = {
+  getItem: (nome) => {
+    try {
+      const valor = localStorage.getItem(nome);
+      return valor ? (JSON.parse(valor) as StorageValue<DadosApp>) : null;
+    } catch {
+      return null;
+    }
+  },
+  setItem: (nome, valor) => {
+    try {
+      const leitoes = valor.state.lotes.reduce((acc, l) => acc + l.leitoes.length, 0);
+      if (leitoes > LIMITE_LEITOES_CACHE_LOCAL) {
+        localStorage.removeItem(nome);
+        return;
+      }
+      localStorage.setItem(nome, JSON.stringify(valor));
+    } catch {
+      try {
+        localStorage.removeItem(nome);
+      } catch {
+        // armazenamento indisponível
+      }
+    }
+  },
+  removeItem: (nome) => {
+    try {
+      localStorage.removeItem(nome);
+    } catch {
+      // armazenamento indisponível
+    }
+  },
+};
 
 export const useStore = create<AppState>()(
   persist(
@@ -179,6 +242,30 @@ export const useStore = create<AppState>()(
           matrizes: state.matrizes.filter((m) => m.id !== id),
           // Lotes da matriz excluída permanecem, mas sem vínculo
           lotes: state.lotes.map((l) => (l.matrizId === id ? { ...l, matrizId: '' } : l)),
+        })),
+
+      addReprodutor: (reprodutor) => {
+        const id = generateId();
+        set((state) => ({
+          reprodutores: [...state.reprodutores, { ...reprodutor, id, createdAt: new Date().toISOString() }],
+        }));
+        return id;
+      },
+
+      updateReprodutor: (id, data) =>
+        set((state) => ({
+          reprodutores: state.reprodutores.map((r) => (r.id === id ? { ...r, ...data } : r)),
+        })),
+
+      deleteReprodutor: (id) =>
+        set((state) => ({
+          reprodutores: state.reprodutores.filter((r) => r.id !== id),
+          // Os ciclos mantêm o nome do reprodutor como texto, só perdem o vínculo
+          matrizes: state.matrizes.map((m) =>
+            m.ciclos.some((c) => c.reprodutorId === id)
+              ? { ...m, ciclos: m.ciclos.map((c) => (c.reprodutorId === id ? { ...c, reprodutorId: undefined } : c)) }
+              : m
+          ),
         })),
 
       registrarCobertura: (matrizId, dados) =>
@@ -412,12 +499,21 @@ export const useStore = create<AppState>()(
       importarDados: (dados) => set(normalizarDados(dados)),
 
       resetarDados: () => set(estadoInicial),
+
+      removerDadosExemplo: () =>
+        set((state) => ({
+          matrizes: state.matrizes.filter((m) => m.origem !== 'exemplo'),
+          reprodutores: state.reprodutores.filter((r) => r.origem !== 'exemplo'),
+          lotes: state.lotes.filter((l) => l.origem !== 'exemplo'),
+        })),
     }),
     {
       name: 'matrizpro-storage',
-      version: 2,
+      version: 3,
+      storage: armazenamentoSeguro,
       partialize: (state) => ({
         matrizes: state.matrizes,
+        reprodutores: state.reprodutores,
         lotes: state.lotes,
         configuracoes: state.configuracoes,
       }),

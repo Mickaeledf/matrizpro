@@ -11,6 +11,8 @@ import { CicloReprodutivo, Matriz, TipoCobertura } from "@/types";
 import { formatarData, hojeISO, somarDias } from "@/lib/date";
 import { campoDataNaoFutura, ErrosFormulario, inteiroNaoNegativo, textoObrigatorio, numero, validar } from "@/lib/validacao";
 
+const SEM_REPRODUTOR = "__outro__";
+
 interface BaseProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -27,10 +29,12 @@ const Rodape = ({ onCancel, onSave, label }: { onCancel: () => void; onSave: () 
 );
 
 export function CoberturaDialog({ open, onOpenChange, matriz }: BaseProps) {
-  const { registrarCobertura, configuracoes } = useStore();
+  const { registrarCobertura, configuracoes, reprodutores } = useStore();
+  const ativos = reprodutores.filter((r) => r.status === "Ativo");
   const [form, setForm] = useState({
     dataCobertura: hojeISO(),
     tipoCobertura: "Inseminação artificial" as TipoCobertura,
+    reprodutorId: SEM_REPRODUTOR,
     reprodutor: "",
     observacoes: "",
   });
@@ -39,16 +43,25 @@ export function CoberturaDialog({ open, onOpenChange, matriz }: BaseProps) {
   useEffect(() => {
     if (open) {
       setErros({});
-      setForm({ dataCobertura: hojeISO(), tipoCobertura: "Inseminação artificial", reprodutor: "", observacoes: "" });
+      setForm({
+        dataCobertura: hojeISO(),
+        tipoCobertura: "Inseminação artificial",
+        reprodutorId: SEM_REPRODUTOR,
+        reprodutor: "",
+        observacoes: "",
+      });
     }
   }, [open]);
 
   const salvar = () => {
     const r = validar(z.object({ dataCobertura: campoDataNaoFutura }), form);
     if (!r.ok) return setErros(r.erros);
+    const escolhido = reprodutores.find((x) => x.id === form.reprodutorId);
     registrarCobertura(matriz.id, {
-      ...form,
-      reprodutor: form.reprodutor.trim() || undefined,
+      dataCobertura: form.dataCobertura,
+      tipoCobertura: form.tipoCobertura,
+      reprodutorId: escolhido?.id,
+      reprodutor: escolhido ? escolhido.identificador : form.reprodutor.trim() || undefined,
       observacoes: form.observacoes.trim() || undefined,
     });
     onOpenChange(false);
@@ -87,9 +100,26 @@ export function CoberturaDialog({ open, onOpenChange, matriz }: BaseProps) {
               </SelectContent>
             </Select>
           </Campo>
-          <Campo label="Reprodutor / Sêmen (opcional)">
-            <Input value={form.reprodutor} onChange={(e) => setForm({ ...form, reprodutor: e.target.value })} />
+          <Campo label="Reprodutor">
+            <Select value={form.reprodutorId} onValueChange={(v) => setForm({ ...form, reprodutorId: v })}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ativos.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>
+                    {r.identificador} — {r.raca}
+                  </SelectItem>
+                ))}
+                <SelectItem value={SEM_REPRODUTOR}>Outro / sêmen externo (digitar)</SelectItem>
+              </SelectContent>
+            </Select>
           </Campo>
+          {form.reprodutorId === SEM_REPRODUTOR && (
+            <Campo label="Reprodutor / sêmen (opcional)" ajuda="Cadastre os cachaços na aba Reprodutores para escolher da lista.">
+              <Input value={form.reprodutor} onChange={(e) => setForm({ ...form, reprodutor: e.target.value })} />
+            </Campo>
+          )}
           <Campo label="Observações">
             <Textarea
               rows={2}

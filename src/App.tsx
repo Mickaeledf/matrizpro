@@ -19,6 +19,9 @@ const LoteDetalhePage = lazy(() => import("@/pages/LoteDetalhePage"));
 const AnalisePage = lazy(() => import("@/pages/AnalisePage"));
 const RelatoriosPage = lazy(() => import("@/pages/RelatoriosPage"));
 const ConfiguracoesPage = lazy(() => import("@/pages/ConfiguracoesPage"));
+const ReprodutoresPage = lazy(() => import("@/pages/ReprodutoresPage"));
+const SuportePage = lazy(() => import("@/pages/SuportePage"));
+const AssinantesPage = lazy(() => import("@/pages/AssinantesPage"));
 
 const queryClient = new QueryClient();
 
@@ -46,6 +49,9 @@ const App = () => (
               <Route path="/lotes/:id" element={<LoteDetalhePage />} />
               <Route path="/analise" element={<AnalisePage />} />
               <Route path="/relatorios" element={<RelatoriosPage />} />
+              <Route path="/reprodutores" element={<ReprodutoresPage />} />
+              <Route path="/suporte" element={<SuportePage />} />
+              <Route path="/assinantes" element={<AssinantesPage />} />
               <Route path="/configuracoes" element={<ConfiguracoesPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />

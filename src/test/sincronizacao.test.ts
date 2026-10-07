@@ -4,19 +4,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // Banco falso em memória que imita o cliente do Supabase (somente o necessário)
 // ---------------------------------------------------------------------------
 type Linha = Record<string, unknown>;
-const banco: Record<string, Linha[]> = { matrizes: [], lotes: [], configuracoes: [] };
+const banco: Record<string, Linha[]> = { matrizes: [], reprodutores: [], lotes: [], configuracoes: [] };
 
 function consulta(tabela: string) {
   let filtroIds: string[] | null = null;
   let operacao: "select" | "delete" = "select";
   let unico = false;
+  let faixa: [number, number] | null = null;
 
   const executar = () => {
     if (operacao === "delete") {
       banco[tabela] = banco[tabela].filter((l) => !filtroIds?.includes(l.id as string));
       return { data: null, error: null };
     }
-    const dados = banco[tabela].map((l) => ({ dados: l.dados }));
+    let dados = banco[tabela].map((l) => ({ dados: l.dados }));
+    if (faixa) dados = dados.slice(faixa[0], faixa[1] + 1);
     return { data: unico ? (dados[0] ?? null) : dados, error: null };
   };
 
@@ -31,6 +33,11 @@ function consulta(tabela: string) {
       return builder;
     },
     eq: () => builder,
+    order: () => builder,
+    range: (de: number, ate: number) => {
+      faixa = [de, ate];
+      return builder;
+    },
     in: (_coluna: string, ids: string[]) => {
       filtroIds = ids;
       return builder;
@@ -63,6 +70,7 @@ const estado = () => useStore.getState();
 beforeEach(async () => {
   await encerrarSincronizacao();
   banco.matrizes = [];
+  banco.reprodutores = [];
   banco.lotes = [];
   banco.configuracoes = [];
   localStorage.clear();
@@ -74,16 +82,16 @@ describe("calcularMudancas", () => {
     const m1 = criarMatriz({ id: "m1" });
     const m2 = criarMatriz({ id: "m2" });
     const l1 = criarLote({ id: "l1" });
-    const antes = { matrizes: [m1, m2], lotes: [l1], configuracoes: CONFIG_PADRAO };
+    const antes = { matrizes: [m1, m2], reprodutores: [], lotes: [l1], configuracoes: CONFIG_PADRAO };
     const m2Editada = { ...m2, identificador: "M-99" };
     const l2 = criarLote({ id: "l2" });
-    const depois = { matrizes: [m1, m2Editada], lotes: [l2], configuracoes: CONFIG_PADRAO };
+    const depois = { matrizes: [m1, m2Editada], reprodutores: [], lotes: [l2], configuracoes: CONFIG_PADRAO };
 
     const mudancas = calcularMudancas(antes, depois);
-    expect(mudancas.matrizesSalvar.map((m) => m.id)).toEqual(["m2"]);
-    expect(mudancas.matrizesExcluir).toEqual([]);
-    expect(mudancas.lotesSalvar.map((l) => l.id)).toEqual(["l2"]);
-    expect(mudancas.lotesExcluir).toEqual(["l1"]);
+    expect(mudancas.salvar.matrizes.map((m) => m.id)).toEqual(["m2"]);
+    expect(mudancas.excluir.matrizes).toEqual([]);
+    expect(mudancas.salvar.lotes.map((l) => l.id)).toEqual(["l2"]);
+    expect(mudancas.excluir.lotes).toEqual(["l1"]);
     expect(mudancas.configuracoes).toBe(false);
   });
 });

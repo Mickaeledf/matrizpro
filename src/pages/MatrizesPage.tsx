@@ -11,6 +11,7 @@ import { formatarData } from "@/lib/date";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { MatrizFormDialog } from "@/components/matriz/MatrizFormDialog";
+import { Paginacao, usePaginacao } from "@/components/Paginacao";
 
 export default function MatrizesPage() {
   const navigate = useNavigate();
@@ -27,6 +28,8 @@ export default function MatrizesPage() {
         .sort((a, b) => a.identificador.localeCompare(b.identificador, "pt-BR", { numeric: true })),
     [matrizes, busca]
   );
+
+  const paginacao = usePaginacao(filtradas, 50);
 
   const openNew = () => {
     setEditing(null);
@@ -93,10 +96,12 @@ export default function MatrizesPage() {
           ) : filtradas.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma matriz corresponde à busca.</p>
           ) : (
+            <>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Identificador</TableHead>
+                  <TableHead>Raça</TableHead>
                   <TableHead>Data de Entrada</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Status Reprodutivo</TableHead>
@@ -105,9 +110,10 @@ export default function MatrizesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtradas.map((m) => (
+                {paginacao.visiveis.map((m) => (
                   <TableRow key={m.id} className="cursor-pointer" onClick={() => navigate(`/matrizes/${m.id}`)}>
                     <TableCell className="font-medium">{m.identificador}</TableCell>
+                    <TableCell>{m.raca || "—"}</TableCell>
                     <TableCell>{formatarData(m.dataEntrada)}</TableCell>
                     <TableCell>
                       <StatusBadge status={m.status} />
@@ -130,6 +136,8 @@ export default function MatrizesPage() {
                 ))}
               </TableBody>
             </Table>
+            <Paginacao {...paginacao} />
+            </>
           )}
         </CardContent>
       </Card>

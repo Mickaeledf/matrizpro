@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Database, Download, Settings, SlidersHorizontal, Trash2, Upload } from "lucide-react";
+import { Database, Download, FlaskConical, Settings, SlidersHorizontal, Trash2, Upload } from "lucide-react";
 import { CONFIG_PADRAO, normalizarDados, useStore } from "@/store/useStore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,7 +39,14 @@ const camposParametros: { campo: CamposParametros; label: string; ajuda: string 
 ];
 
 export default function ConfiguracoesPage() {
-  const { configuracoes, updateConfiguracoes, importarDados, resetarDados, matrizes, lotes } = useStore();
+  const { configuracoes, updateConfiguracoes, importarDados, resetarDados, removerDadosExemplo, matrizes, reprodutores, lotes } =
+    useStore();
+  const exemplos = {
+    matrizes: matrizes.filter((m) => m.origem === "exemplo").length,
+    reprodutores: reprodutores.filter((r) => r.origem === "exemplo").length,
+    lotes: lotes.filter((l) => l.origem === "exemplo").length,
+  };
+  const temExemplos = exemplos.matrizes + exemplos.reprodutores + exemplos.lotes > 0;
   const { confirmar, dialog } = useConfirm();
   const inputArquivo = useRef<HTMLInputElement>(null);
 
@@ -84,7 +91,7 @@ export default function ConfiguracoesPage() {
   };
 
   const exportar = () => {
-    const dados = { app: "MatrizPro", versao: 2, exportadoEm: new Date().toISOString(), matrizes, lotes, configuracoes };
+    const dados = { app: "MatrizPro", versao: 3, exportadoEm: new Date().toISOString(), matrizes, reprodutores, lotes, configuracoes };
     const blob = new Blob([JSON.stringify(dados, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -218,6 +225,38 @@ export default function ConfiguracoesPage() {
           </div>
         </CardContent>
       </Card>
+      {temExemplos && (
+        <Card className="max-w-3xl border border-border">
+          <CardContent className="space-y-4 p-4 sm:p-6">
+            <div className="flex items-center gap-3">
+              <FlaskConical className="h-5 w-5 text-muted-foreground" />
+              <h2 className="text-lg font-bold text-foreground">Dados de Exemplo</h2>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Sua conta tem uma base de demonstração ({exemplos.matrizes} matrizes, {exemplos.reprodutores} reprodutores e{" "}
+              {exemplos.lotes} lotes) para você explorar o sistema. Quando quiser começar com os seus dados reais, remova
+              somente esses registros. O que você cadastrou não é afetado.
+            </p>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() =>
+                confirmar({
+                  titulo: "Remover os dados de exemplo?",
+                  descricao: "Somente os registros de demonstração serão apagados (inclusive da nuvem). Esta ação não pode ser desfeita.",
+                  confirmar: "Remover exemplos",
+                  onConfirm: () => {
+                    removerDadosExemplo();
+                    toast.success("Dados de exemplo removidos.");
+                  },
+                })
+              }
+            >
+              <Trash2 className="h-4 w-4" /> Remover dados de exemplo
+            </Button>
+          </CardContent>
+        </Card>
+      )}
       {dialog}
     </div>
   );

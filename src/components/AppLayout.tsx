@@ -1,11 +1,13 @@
 import { Suspense, useEffect, useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { GitBranch, Loader2, Menu } from "lucide-react";
 import { AppSidebar } from "./AppSidebar";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/auth";
 import { iniciarSincronizacao } from "@/lib/sincronizacao";
+import { acessoLiberado, useAssinatura } from "@/lib/assinatura";
+import { FaixaAssinatura, TelaAssinaturaBloqueada } from "@/components/assinatura/AvisosAssinatura";
 
 const Carregando = ({ texto }: { texto: string }) => (
   <div className="flex flex-col items-center justify-center gap-3 py-16 text-sm text-muted-foreground">
@@ -19,6 +21,9 @@ export function AppLayout() {
   const { user } = useAuth();
   const userId = user?.id;
   const [dadosProntos, setDadosProntos] = useState(false);
+  const { pathname } = useLocation();
+  const situacao = useAssinatura((s) => s.situacao);
+  const carregarAssinatura = useAssinatura((s) => s.carregar);
 
   // Carrega os dados do usuário da nuvem e mantém tudo sincronizado
   useEffect(() => {
@@ -26,6 +31,14 @@ export function AppLayout() {
     setDadosProntos(false);
     return iniciarSincronizacao(userId, () => setDadosProntos(true));
   }, [userId]);
+
+  // Situação da assinatura (teste grátis, mensalidade, dona)
+  useEffect(() => {
+    if (userId) carregarAssinatura();
+  }, [userId, carregarAssinatura]);
+
+  // Com o acesso vencido, só a aba Suporte continua disponível
+  const bloqueado = !acessoLiberado(situacao) && pathname !== "/suporte";
 
   return (
     <div className="flex h-screen flex-col overflow-hidden md:flex-row print:block print:h-auto print:overflow-visible">
@@ -53,15 +66,20 @@ export function AppLayout() {
         </SheetContent>
       </Sheet>
 
-      <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-6 lg:p-8 print:overflow-visible print:bg-white print:p-0">
-        {dadosProntos ? (
-          <Suspense fallback={<Carregando texto="Carregando…" />}>
-            <Outlet />
-          </Suspense>
-        ) : (
-          <Carregando texto="Carregando seus dados…" />
-        )}
-      </main>
+      <div className="flex min-h-0 flex-1 flex-col print:block">
+        <FaixaAssinatura situacao={situacao} />
+        <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-6 lg:p-8 print:overflow-visible print:bg-white print:p-0">
+          {bloqueado ? (
+            <TelaAssinaturaBloqueada situacao={situacao} />
+          ) : dadosProntos ? (
+            <Suspense fallback={<Carregando texto="Carregando…" />}>
+              <Outlet />
+            </Suspense>
+          ) : (
+            <Carregando texto="Carregando seus dados…" />
+          )}
+        </main>
+      </div>
     </div>
   );
 }

@@ -13,6 +13,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { LoteFormDialog } from "@/components/lote/LoteFormDialog";
 import { estatisticasLote } from "@/utils/metricas";
+import { Paginacao, usePaginacao } from "@/components/Paginacao";
 
 export default function LotesPage() {
   const navigate = useNavigate();
@@ -32,7 +33,10 @@ export default function LotesPage() {
     [lotes, busca, filtroStatus]
   );
 
-  const nomeMatriz = (id: string) => matrizes.find((m) => m.id === id)?.identificador ?? "—";
+  const paginacao = usePaginacao(filtrados, 50);
+  const nomesMatrizes = useMemo(() => new Map(matrizes.map((m) => [m.id, m.identificador])), [matrizes]);
+
+  const nomeMatriz = (id: string) => nomesMatrizes.get(id) ?? "—";
 
   const excluir = (l: Lote) =>
     confirmar({
@@ -92,6 +96,7 @@ export default function LotesPage() {
           ) : filtrados.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">Nenhum lote corresponde aos filtros.</p>
           ) : (
+            <>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -107,7 +112,7 @@ export default function LotesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtrados.map((l) => {
+                {paginacao.visiveis.map((l) => {
                   const est = estatisticasLote(l);
                   return (
                     <TableRow key={l.id} className="cursor-pointer" onClick={() => navigate(`/lotes/${l.id}`)}>
@@ -146,6 +151,8 @@ export default function LotesPage() {
                 })}
               </TableBody>
             </Table>
+            <Paginacao {...paginacao} />
+            </>
           )}
         </CardContent>
       </Card>

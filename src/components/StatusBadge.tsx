@@ -29,6 +29,9 @@ const tomPorStatus: Record<string, Tom> = {
   "Em gestação": "info",
   Parida: "success",
   Falhou: "destructive",
+  // Reprodutor
+  Inativo: "warning",
+  Descartado: "destructive",
   // Leitão
   Morto: "destructive",
   // Saúde

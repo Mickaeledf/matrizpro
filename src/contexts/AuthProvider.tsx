@@ -4,6 +4,7 @@ import { supabase, supabaseConfigurado } from "@/lib/supabase";
 import { traduzirErroAuth } from "@/lib/authValidacao";
 import { encerrarSincronizacao, definirDonoLocal } from "@/lib/sincronizacao";
 import { useStore } from "@/store/useStore";
+import { useAssinatura } from "@/lib/assinatura";
 import { AuthContext, AuthContextValue } from "./auth";
 
 /** Para onde o link de confirmação do email leva o usuário de volta. */
@@ -85,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 2) Limpa os dados deste navegador (o próximo usuário não os verá)
     useStore.getState().resetarDados();
     definirDonoLocal(null);
+    useAssinatura.getState().limpar();
     setSession(null);
   }, []);
 

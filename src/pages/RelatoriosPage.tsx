@@ -35,11 +35,29 @@ export default function RelatoriosPage() {
   const [tipo, setTipo] = useState<TipoRelatorio>("geral");
   const [loteId, setLoteId] = useState<string>("");
 
-  const loteSelecionado: Lote | undefined = lotes.find((l) => l.id === loteId) ?? lotes[0];
-  const linhas = useMemo(() => lotes.map((l) => ({ lote: l, est: estatisticasLote(l) })), [lotes]);
+  const [ano, setAno] = useState(String(new Date().getFullYear()));
+  const anos = useMemo(
+    () => [...new Set(lotes.map((l) => l.dataParto.slice(0, 4)))].sort().reverse(),
+    [lotes]
+  );
+  // Lotes do ano escolhido (pela data do parto), do mais recente para o mais antigo
+  const lotesAno = useMemo(
+    () =>
+      lotes
+        .filter((l) => ano === "todos" || l.dataParto.startsWith(ano))
+        .sort((a, b) => b.dataParto.localeCompare(a.dataParto)),
+    [lotes, ano]
+  );
+  const linhas = useMemo(() => lotesAno.map((l) => ({ lote: l, est: estatisticasLote(l) })), [lotesAno]);
+  const loteSelecionado: Lote | undefined = lotes.find((l) => l.id === loteId) ?? lotesAno[0] ?? lotes[0];
+  const leitoesAtivos = useMemo(
+    () => lotes.reduce((a, l) => a + l.leitoes.filter((lt) => lt.status === "Ativo").length, 0),
+    [lotes]
+  );
   const alertas = useMemo(() => gerarAlertasDinamicos(lotes, matrizes, configuracoes), [lotes, matrizes, configuracoes]);
 
-  const nomeMatriz = (id: string) => matrizes.find((m) => m.id === id)?.identificador ?? "—";
+  const nomesMatrizes = useMemo(() => new Map(matrizes.map((m) => [m.id, m.identificador])), [matrizes]);
+  const nomeMatriz = (id: string) => nomesMatrizes.get(id) ?? "—";
 
   const exportarCSV = () => {
     if (tipo === "lote" && loteSelecionado) {
@@ -58,7 +76,7 @@ export default function RelatoriosPage() {
     } else if (tipo === "financeiro") {
       baixarCSV(`financeiro-${hojeISO()}.csv`, [
         ["Lote", "Data", "Tipo", "Categoria", "Descrição", "Valor (R$)"],
-        ...lotes.flatMap((l) =>
+        ...lotesAno.flatMap((l) =>
           l.lancamentos.map((x) => [l.nome, formatarData(x.data), x.tipo, x.categoria, x.descricao, formatarNumero(x.valor, 2)])
         ),
       ]);
@@ -81,10 +99,11 @@ export default function RelatoriosPage() {
     }
   };
 
+  const sufixoAno = ano === "todos" ? "" : ` — ${ano}`;
   const titulos: Record<TipoRelatorio, string> = {
-    geral: "Relatório Geral do Plantel",
+    geral: `Relatório Geral do Plantel${sufixoAno}`,
     lote: `Relatório do Lote ${loteSelecionado?.nome ?? ""}`,
-    financeiro: "Relatório Financeiro",
+    financeiro: `Relatório Financeiro${sufixoAno}`,
   };
 
   const semDados = lotes.length === 0 && matrizes.length === 0;
@@ -104,13 +123,33 @@ export default function RelatoriosPage() {
               <SelectItem value="financeiro">Financeiro</SelectItem>
             </SelectContent>
           </Select>
-          {tipo === "lote" && lotes.length > 0 && (
+          <Select
+            value={ano}
+            onValueChange={(v) => {
+              setAno(v);
+              setLoteId("");
+            }}
+          >
+            <SelectTrigger className="w-36" aria-label="Ano">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {!anos.includes(ano) && ano !== "todos" && <SelectItem value={ano}>{ano}</SelectItem>}
+              {anos.map((a) => (
+                <SelectItem key={a} value={a}>
+                  {a}
+                </SelectItem>
+              ))}
+              <SelectItem value="todos">Todos os anos</SelectItem>
+            </SelectContent>
+          </Select>
+          {tipo === "lote" && lotesAno.length > 0 && (
             <Select value={loteSelecionado?.id} onValueChange={setLoteId}>
               <SelectTrigger className="w-44">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {lotes.map((l) => (
+                {lotesAno.map((l) => (
                   <SelectItem key={l.id} value={l.id}>
                     {l.nome}
                   </SelectItem>
@@ -164,7 +203,7 @@ export default function RelatoriosPage() {
                     { l: "Matrizes ativas", v: matrizes.filter((m) => m.status === "Ativa").length },
                     { l: "Gestantes", v: matrizes.filter((m) => m.status === "Ativa" && m.statusReprodutivo === "Gestante").length },
                     { l: "Lotes ativos", v: lotes.filter((l) => l.status === "Ativo").length },
-                    { l: "Leitões ativos", v: linhas.reduce((a, { est }) => a + est.ativos, 0) },
+                    { l: "Leitões ativos", v: leitoesAtivos },
                   ].map((k) => (
                     <div key={k.l} className="rounded-md border p-3">
                       <p className="text-xs text-muted-foreground">{k.l}</p>

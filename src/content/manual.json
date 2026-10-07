@@ -1,0 +1,92 @@
+{
+  "titulo": "Manual de Uso do MatrizPro",
+  "subtitulo": "Gestão de matrizes, reprodutores, leitegadas e leitões",
+  "secoes": [
+    {
+      "titulo": "1. Primeiro acesso",
+      "itens": [
+        "Na tela inicial, clique em \"Criar conta\", informe seu email e uma senha com pelo menos 8 caracteres, contendo letras e números.",
+        "Abra o email de confirmação enviado pelo MatrizPro e clique no link. Sem essa confirmação não é possível entrar.",
+        "Todo novo cadastro tem 10 dias de teste grátis com acesso completo. Depois disso é preciso assinar o plano mensal.",
+        "Seus dados ficam salvos na nuvem e aparecem em qualquer computador ou celular ao entrar com sua conta. Na barra lateral, \"Salvo na nuvem\" indica que tudo foi gravado."
+      ]
+    },
+    {
+      "titulo": "2. Configurações iniciais",
+      "itens": [
+        "Em Configurações, preencha o nome da granja, o responsável e a cidade. Esses dados aparecem nos relatórios.",
+        "Ajuste os parâmetros de manejo: duração da gestação (padrão 114 dias), idade de desmame, intervalo entre pesagens e os limites usados nos alertas.",
+        "Use \"Exportar backup\" de vez em quando para guardar uma cópia extra dos dados em arquivo."
+      ]
+    },
+    {
+      "titulo": "3. Reprodutores",
+      "itens": [
+        "Na aba Reprodutores, cadastre os machos (cachaços) com identificador, raça e datas.",
+        "A tabela mostra o desempenho de cada um: número de coberturas, taxa de prenhez e média de leitões nascidos vivos.",
+        "Quando um reprodutor sair do plantel, marque como \"Descartado\" em vez de excluir, para manter o histórico."
+      ]
+    },
+    {
+      "titulo": "4. Matrizes e ciclo reprodutivo",
+      "itens": [
+        "Na aba Matrizes, cadastre cada fêmea com identificador (brinco ou tatuagem), datas e preço de aquisição.",
+        "Abra a matriz e use \"Registrar Cobertura\": escolha a data, o tipo (inseminação ou monta) e o reprodutor. O parto previsto é calculado automaticamente.",
+        "No dia do parto, clique em \"Parto\" no ciclo e informe nascidos vivos e mortos. O lote (leitegada) é criado automaticamente.",
+        "No desmame, clique em \"Desmame\". A matriz fica pronta para uma nova cobertura e o lote passa para \"Desmamado\".",
+        "Se a gestação não vingar, use \"Falhou\". O status da matriz (Vazia, Gestante, Lactante, Desmamada) é atualizado sozinho."
+      ]
+    },
+    {
+      "titulo": "5. Lotes e leitões",
+      "itens": [
+        "Abra um lote para ver os leitões. Use \"Cadastro Rápido\" para registrar a leitegada inteira de uma vez, com identificadores em sequência.",
+        "Clique em um leitão para ver o gráfico de peso, o ganho de peso diário (GPD) e o histórico de saúde.",
+        "\"Pesagem do Lote\" permite lançar o peso de todos os leitões numa mesma data. Deixe em branco quem não foi pesado.",
+        "Se um leitão morrer ou for vendido, altere a situação dele em vez de excluir. Assim a mortalidade e os indicadores ficam corretos.",
+        "Na aba Vacinas do lote, agende as vacinas e marque como aplicadas. Na aba Financeiro, lance custos (ração, medicamentos, mão de obra) e receitas (venda)."
+      ]
+    },
+    {
+      "titulo": "6. Painel e alertas",
+      "itens": [
+        "O Painel mostra o total de leitões ativos, o peso médio, a saúde do rebanho e as matrizes gestantes e lactantes.",
+        "Os alertas automáticos avisam sobre: vacina próxima ou atrasada, pesagem do dia, desmame, parto previsto ou atrasado, leitão com ganho de peso abaixo da média, saúde crítica e mortalidade alta.",
+        "Clique em um alerta para ir direto ao lote, leitão ou matriz correspondente."
+      ]
+    },
+    {
+      "titulo": "7. Análises e relatórios",
+      "itens": [
+        "Em Análise, compare o desempenho dos lotes (GPD e mortalidade), acompanhe a curva de crescimento dos leitões e veja custos x receitas.",
+        "Em Relatórios, escolha o tipo (geral, por lote ou financeiro) e o ano. \"Gerar PDF\" abre a impressão: escolha \"Salvar como PDF\". \"CSV\" gera uma planilha para o Excel."
+      ]
+    },
+    {
+      "titulo": "8. Assinatura e suporte",
+      "itens": [
+        "A faixa no topo da tela mostra quantos dias de teste grátis faltam.",
+        "Quando o teste ou a mensalidade vencer, os dados continuam guardados. Basta regularizar a assinatura para voltar a usar normalmente.",
+        "Dúvidas? Use a aba Suporte para falar conosco pelo WhatsApp."
+      ]
+    }
+  ],
+  "perguntas": [
+    {
+      "pergunta": "Perco meus dados se o teste acabar?",
+      "resposta": "Não. Os dados continuam guardados na nuvem e voltam assim que a assinatura for ativada."
+    },
+    {
+      "pergunta": "Posso usar no celular?",
+      "resposta": "Sim. O MatrizPro funciona no navegador do celular; use o menu no canto superior esquerdo para navegar."
+    },
+    {
+      "pergunta": "Não recebi o email de confirmação. E agora?",
+      "resposta": "Verifique a caixa de spam. Na tela de login, tente entrar: aparecerá a opção \"Reenviar email de confirmação\"."
+    },
+    {
+      "pergunta": "Como apagar os dados de exemplo?",
+      "resposta": "Em Configurações, use \"Remover dados de exemplo\". Somente os registros de demonstração são apagados."
+    }
+  ]
+}

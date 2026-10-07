@@ -10,6 +10,9 @@ Sistema web para gestão de suinocultura: matrizes reprodutoras, ciclos reprodut
 - **Análise** — comparativo de desempenho entre lotes, curva de crescimento individual e custos x receitas.
 - **Relatórios** — geral, por lote e financeiro, com geração de PDF (impressão do navegador) e exportação CSV.
 - **Configurações** — dados da fazenda, parâmetros de manejo/alertas e backup/restauração em JSON.
+- **Reprodutores** — cadastro dos cachaços com desempenho (coberturas, taxa de prenhez, média de nascidos vivos).
+- **Assinatura** — 10 dias de teste grátis para cada novo cadastro; depois, mensalidade (liberação manual pela área **Assinantes**, visível só para a administradora). O bloqueio é feito no banco (RLS).
+- **Suporte** — manual de uso em PDF (`npm run manual` gera a partir de `src/content/manual.json`), perguntas frequentes e botão de WhatsApp.
 
 ## Login (Supabase)
 
@@ -19,12 +22,18 @@ Projeto Supabase: `matrizpro` (região São Paulo). Configuração já aplicada:
 
 - Credenciais públicas em [`src/lib/supabase.ts`](src/lib/supabase.ts) (Project URL + publishable key).
 - Tabelas e políticas de segurança: [`supabase/migrations/001_esquema_inicial.sql`](supabase/migrations/001_esquema_inicial.sql) (já executado no SQL Editor).
+- Reprodutores, assinaturas e funções de administração: [`supabase/migrations/002_reprodutores_e_assinaturas.sql`](supabase/migrations/002_reprodutores_e_assinaturas.sql) (já executado).
+- Base de exemplo (10.000 leitões) da conta da Karen: [`supabase/seed/base_exemplo_karen.sql`](supabase/seed/base_exemplo_karen.sql) (já executado).
 - Authentication → Email: **Confirm email** ativado; senha com mínimo de 8 caracteres, letras e números.
 - Authentication → URL Configuration: Site URL `http://localhost:8080` e Redirect URL `http://localhost:8080/**`.
 
 Ao publicar o app, adicione o endereço publicado em **Redirect URLs** (e troque o **Site URL**).
 
 O serviço de email padrão do Supabase envia poucos emails por hora e só entrega para membros da equipe do projeto. Para cadastrar usuários reais, configure um SMTP próprio em **Authentication → Emails → SMTP Settings**.
+
+## Pendências
+
+O que ainda falta definir (valor da mensalidade, WhatsApp, pagamento, SMTP...) está em [`PENDENCIAS.md`](PENDENCIAS.md).
 
 ## Armazenamento
 
