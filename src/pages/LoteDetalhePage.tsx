@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, DollarSign, Pencil, PlusCircle, Scale, Syringe, Trash2, Users, Zap } from "lucide-react";
 import { useStore } from "@/store/useStore";
@@ -29,6 +29,16 @@ export default function LoteDetalhePage() {
   const [leitaoForm, setLeitaoForm] = useState<{ open: boolean; leitao: Leitao | null }>({ open: false, leitao: null });
   const [cadastroRapido, setCadastroRapido] = useState(false);
   const [pesagemLote, setPesagemLote] = useState(false);
+
+  // Atalhos vindos dos alertas: ?aba=vacinas abre a aba certa; ?acao=pesagem já abre a pesagem do lote
+  const aba = searchParams.get("aba") ?? "leitoes";
+  const acao = searchParams.get("acao");
+  useEffect(() => {
+    if (acao === "pesagem") {
+      setPesagemLote(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [acao, setSearchParams]);
 
   const lote = lotes.find((l) => l.id === id);
 
@@ -120,7 +130,11 @@ export default function LoteDetalhePage() {
         ))}
       </div>
 
-      <Tabs defaultValue="leitoes" className="space-y-4">
+      <Tabs
+        value={aba}
+        onValueChange={(v) => setSearchParams(v === "leitoes" ? {} : { aba: v }, { replace: true })}
+        className="space-y-4"
+      >
         <TabsList className="h-auto w-full flex-wrap justify-start bg-muted">
           <TabsTrigger value="leitoes" className="gap-2">
             <Users className="h-4 w-4" /> Leitões

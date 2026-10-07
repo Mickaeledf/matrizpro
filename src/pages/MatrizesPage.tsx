@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useStore } from "@/store/useStore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PlusCircle, Pencil, Trash2, Search } from "lucide-react";
 import { Matriz } from "@/types";
@@ -20,13 +21,19 @@ export default function MatrizesPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Matriz | null>(null);
   const [busca, setBusca] = useState("");
+  // Filtros podem vir prontos do Painel (ex.: /matrizes?reprodutivo=Gestante)
+  const [searchParams] = useSearchParams();
+  const [filtroStatus, setFiltroStatus] = useState(searchParams.get("status") ?? "todos");
+  const [filtroReprodutivo, setFiltroReprodutivo] = useState(searchParams.get("reprodutivo") ?? "todos");
 
   const filtradas = useMemo(
     () =>
       matrizes
         .filter((m) => m.identificador.toLowerCase().includes(busca.trim().toLowerCase()))
+        .filter((m) => filtroStatus === "todos" || m.status === filtroStatus)
+        .filter((m) => filtroReprodutivo === "todos" || m.statusReprodutivo === filtroReprodutivo)
         .sort((a, b) => a.identificador.localeCompare(b.identificador, "pt-BR", { numeric: true })),
-    [matrizes, busca]
+    [matrizes, busca, filtroStatus, filtroReprodutivo]
   );
 
   const paginacao = usePaginacao(filtradas, 50);
@@ -78,7 +85,8 @@ export default function MatrizesPage() {
           </div>
 
           {matrizes.length > 0 && (
-            <div className="relative mb-4 max-w-xs">
+            <div className="mb-4 flex flex-wrap gap-3">
+              <div className="relative w-full max-w-xs">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Buscar por identificador"
@@ -86,6 +94,30 @@ export default function MatrizesPage() {
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
               />
+              </div>
+              <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+                <SelectTrigger className="w-44" aria-label="Filtrar por status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos os status</SelectItem>
+                  <SelectItem value="Ativa">Ativa</SelectItem>
+                  <SelectItem value="Inativa">Inativa</SelectItem>
+                  <SelectItem value="Descartada">Descartada</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filtroReprodutivo} onValueChange={setFiltroReprodutivo}>
+                <SelectTrigger className="w-52" aria-label="Filtrar por status reprodutivo">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todas as fases</SelectItem>
+                  <SelectItem value="Vazia">Vazia</SelectItem>
+                  <SelectItem value="Gestante">Gestante</SelectItem>
+                  <SelectItem value="Lactante">Lactante</SelectItem>
+                  <SelectItem value="Desmamada">Desmamada</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           )}
 
@@ -94,7 +126,7 @@ export default function MatrizesPage() {
               <p className="text-sm text-primary">Nenhuma matriz encontrada. Comece adicionando uma nova!</p>
             </div>
           ) : filtradas.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma matriz corresponde à busca.</p>
+            <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma matriz corresponde aos filtros.</p>
           ) : (
             <>
             <Table>

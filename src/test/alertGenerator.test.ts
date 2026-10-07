@@ -23,6 +23,8 @@ describe("gerarAlertasDinamicos", () => {
     expect(alertas).toHaveLength(2);
     expect(alertas.find((a) => a.id === "vacina-v1")).toMatchObject({ titulo: "Vacina Atrasada!", severidade: "critical" });
     expect(alertas.find((a) => a.id === "vacina-v2")).toMatchObject({ titulo: "Próxima Vacinação", severidade: "warning" });
+    // o alerta leva direto para a aba de vacinas do lote
+    expect(alertas.every((a) => a.link === "/lotes/lote-1?aba=vacinas")).toBe(true);
   });
 
   it("detecta leitão com ganho de peso abaixo da média e ignora quem não foi pesado", () => {
@@ -83,5 +85,21 @@ describe("gerarAlertasDinamicos", () => {
     expect(severidades).toEqual([...severidades].sort((a, b) => ["critical", "warning", "info"].indexOf(a) - ["critical", "warning", "info"].indexOf(b)));
     expect(severidades[0]).toBe("critical");
     expect(severidades).toContain("info");
+  });
+});
+
+describe("links dos alertas levam ao lugar da ação", () => {
+  it("pesagem abre a pesagem do lote e desmame abre a matriz", () => {
+    const matriz = criarMatriz({ id: "m1" });
+    const lote = criarLote({ matrizId: "m1", dataParto: "2026-09-16" }); // 21 dias: pesagem hoje e desmame hoje
+    const alertas = gerarAlertasDinamicos([lote], [matriz], CONFIG_PADRAO, hoje);
+    expect(alertas.find((a) => a.tipo === "pesagem")?.link).toBe("/lotes/lote-1?acao=pesagem");
+    expect(alertas.find((a) => a.tipo === "desmame")?.link).toBe("/matrizes/m1");
+  });
+
+  it("desmame de lote sem matriz abre o próprio lote", () => {
+    const lote = criarLote({ matrizId: "", dataParto: "2026-09-16" });
+    const alertas = gerarAlertasDinamicos([lote], [], CONFIG_PADRAO, hoje);
+    expect(alertas.find((a) => a.tipo === "desmame")?.link).toBe("/lotes/lote-1");
   });
 });

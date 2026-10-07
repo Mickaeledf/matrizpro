@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, XAxis, YAxis } from "recharts";
 import { BarChart3, TrendingUp, DollarSign } from "lucide-react";
 import { useStore } from "@/store/useStore";
@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { StatusBadge } from "@/components/StatusBadge";
+import { Button } from "@/components/ui/button";
 import { diasEntre, formatarMoeda, formatarNumero } from "@/lib/date";
 import { estatisticasLote } from "@/utils/metricas";
 import { cn } from "@/lib/utils";
@@ -16,6 +17,7 @@ import { Paginacao, usePaginacao } from "@/components/Paginacao";
 
 /** Os gráficos mostram só os lotes mais recentes (com centenas de lotes as barras ficariam ilegíveis). */
 const MAX_LOTES_GRAFICO = 24;
+const ORDEM_SAUDE = ["Crítico", "Em tratamento", "Em observação", "Saudável"];
 
 const Vazio = ({ children }: { children: React.ReactNode }) => (
   <div className="flex h-64 items-center justify-center">
@@ -33,6 +35,21 @@ const coresSaude: Record<string, string> = {
 export default function AnalisePage() {
   const navigate = useNavigate();
   const { lotes } = useStore();
+  // A aba pode vir do Painel (ex.: /analise?aba=custos)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const aba = searchParams.get("aba") ?? "desempenho";
+  const abrirLoteDoGrafico = (d: { payload?: { id?: string } }) => {
+    if (d.payload?.id) navigate(`/lotes/${d.payload.id}`);
+  };
+
+  // Leitões vivos com algum problema de saúde (para onde aponta o cartão "Saúde do Rebanho")
+  const emAtencao = useMemo(
+    () =>
+      lotes
+        .flatMap((l) => l.leitoes.filter((lt) => lt.status === "Ativo" && lt.statusSaude !== "Saudável").map((lt) => ({ lote: l, lt })))
+        .sort((a, b) => ORDEM_SAUDE.indexOf(a.lt.statusSaude) - ORDEM_SAUDE.indexOf(b.lt.statusSaude)),
+    [lotes]
+  );
   const [filtro, setFiltro] = useState("todos");
   const [loteCrescimento, setLoteCrescimento] = useState<string>("");
 
@@ -47,6 +64,7 @@ export default function AnalisePage() {
   const linhas = useMemo(() => lotesFiltrados.map((l) => ({ lote: l, est: estatisticasLote(l) })), [lotesFiltrados]);
 
   const dadosDesempenho = linhas.slice(-MAX_LOTES_GRAFICO).map(({ lote, est }) => ({
+    id: lote.id,
     lote: lote.nome,
     pesoMedio: Number(est.pesoMedio.toFixed(2)),
     gpd: est.gpdMedio !== null ? Math.round(est.gpdMedio * 1000) : 0,
@@ -105,7 +123,7 @@ export default function AnalisePage() {
   const dadosCustos = linhas
     .slice(-MAX_LOTES_GRAFICO)
     .filter(({ est }) => est.totalCustos > 0 || est.totalReceitas > 0)
-    .map(({ lote, est }) => ({ lote: lote.nome, custos: est.totalCustos, receitas: est.totalReceitas }));
+    .map(({ lote, est }) => ({ id: lote.id, lote: lote.nome, custos: est.totalCustos, receitas: est.totalReceitas }));
 
   const distribuicaoSaude = useMemo(() => {
     const contagem: Record<string, number> = {};
@@ -142,7 +160,11 @@ export default function AnalisePage() {
         </Select>
       </div>
 
-      <Tabs defaultValue="desempenho" className="space-y-4">
+      <Tabs
+        value={aba}
+        onValueChange={(v) => setSearchParams(v === "desempenho" ? {} : { aba: v }, { replace: true })}
+        className="space-y-4"
+      >
         <TabsList className="h-auto w-full flex-wrap justify-start bg-muted">
           <TabsTrigger value="desempenho" className="gap-2">
             <BarChart3 className="h-4 w-4" />
@@ -177,7 +199,7 @@ export default function AnalisePage() {
                         <XAxis dataKey="lote" tickLine={false} axisLine={false} />
                         <YAxis tickLine={false} axisLine={false} />
                         <ChartTooltip content={<ChartTooltipContent />} />
-                        <Bar dataKey="gpd" fill="var(--color-gpd)" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                        <Bar dataKey="gpd" fill="var(--color-gpd)" radius={[4, 4, 0, 0]} maxBarSize={50} className="cursor-pointer" onClick={abrirLoteDoGrafico} />
                       </BarChart>
                     </ChartContainer>
                   </div>
@@ -192,7 +214,7 @@ export default function AnalisePage() {
                         <XAxis dataKey="lote" tickLine={false} axisLine={false} />
                         <YAxis tickLine={false} axisLine={false} />
                         <ChartTooltip content={<ChartTooltipContent />} />
-                        <Bar dataKey="mortalidade" fill="var(--color-mortalidade)" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                        <Bar dataKey="mortalidade" fill="var(--color-mortalidade)" radius={[4, 4, 0, 0]} maxBarSize={50} className="cursor-pointer" onClick={abrirLoteDoGrafico} />
                       </BarChart>
                     </ChartContainer>
                   </div>
@@ -253,7 +275,8 @@ export default function AnalisePage() {
                   <p className="text-sm text-muted-foreground">Peso (kg) por idade (dias). A linha grossa é a média do lote.</p>
                 </div>
                 {lotesComPesagem.length > 0 && (
-                  <Select value={loteSelecionado?.id} onValueChange={setLoteCrescimento}>
+                  <div className="flex gap-2">
+                    <Select value={loteSelecionado?.id} onValueChange={setLoteCrescimento}>
                     <SelectTrigger className="w-48">
                       <SelectValue placeholder="Selecione o lote" />
                     </SelectTrigger>
@@ -265,6 +288,12 @@ export default function AnalisePage() {
                       ))}
                     </SelectContent>
                   </Select>
+                    {loteSelecionado && (
+                      <Button variant="outline" onClick={() => navigate(`/lotes/${loteSelecionado.id}`)}>
+                        Abrir lote
+                      </Button>
+                    )}
+                  </div>
                 )}
               </div>
               {!loteSelecionado || crescimento.dados.length < 2 ? (
@@ -327,8 +356,8 @@ export default function AnalisePage() {
                       <YAxis tickLine={false} axisLine={false} tickFormatter={(v) => `R$${v}`} />
                       <ChartTooltip content={<ChartTooltipContent />} />
                       <Legend />
-                      <Bar dataKey="custos" fill="var(--color-custos)" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                      <Bar dataKey="receitas" fill="var(--color-receitas)" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                      <Bar dataKey="custos" fill="var(--color-custos)" radius={[4, 4, 0, 0]} maxBarSize={40} className="cursor-pointer" onClick={abrirLoteDoGrafico} />
+                      <Bar dataKey="receitas" fill="var(--color-receitas)" radius={[4, 4, 0, 0]} maxBarSize={40} className="cursor-pointer" onClick={abrirLoteDoGrafico} />
                     </BarChart>
                   </ChartContainer>
                 )}
@@ -361,6 +390,46 @@ export default function AnalisePage() {
             </Card>
           </div>
 
+          <Card className="border border-border">
+            <CardContent className="p-4 sm:p-6">
+              <h2 className="text-lg font-bold text-foreground">Animais que precisam de atenção</h2>
+              <p className="mb-4 text-sm text-muted-foreground">
+                Leitões vivos em observação, tratamento ou estado crítico. Clique para abrir a ficha do animal.
+              </p>
+              {emAtencao.length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">Nenhum animal em atenção. Tudo certo!</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Leitão</TableHead>
+                      <TableHead>Lote</TableHead>
+                      <TableHead>Saúde</TableHead>
+                      <TableHead>Último registro</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {emAtencao.map(({ lote, lt }) => {
+                      const ultimo = [...lt.registrosSaude].sort((a, b) => b.data.localeCompare(a.data))[0];
+                      return (
+                        <TableRow key={lt.id} onClick={() => navigate(`/lotes/${lote.id}?leitao=${lt.id}`)}>
+                          <TableCell className="font-medium">{lt.identificador}</TableCell>
+                          <TableCell>{lote.nome}</TableCell>
+                          <TableCell>
+                            <StatusBadge status={lt.statusSaude} />
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {ultimo ? `${ultimo.descricao}${ultimo.medicamento ? ` · ${ultimo.medicamento}` : ""}` : "Sem registro"}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
           {linhas.some(({ est }) => est.totalCustos > 0 || est.totalReceitas > 0) && (
             <Card className="border border-border">
               <CardContent className="p-4 sm:p-6">
@@ -377,7 +446,7 @@ export default function AnalisePage() {
                   </TableHeader>
                   <TableBody>
                     {pagCustos.visiveis.map(({ lote, est }) => (
-                      <TableRow key={lote.id}>
+                      <TableRow key={lote.id} onClick={() => navigate(`/lotes/${lote.id}?aba=financeiro`)}>
                         <TableCell className="font-medium">{lote.nome}</TableCell>
                         <TableCell className="text-right">{formatarMoeda(est.totalCustos)}</TableCell>
                         <TableCell className="text-right">{formatarMoeda(est.custosSaude)}</TableCell>

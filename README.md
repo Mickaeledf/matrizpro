@@ -23,7 +23,7 @@ Projeto Supabase: `matrizpro` (região São Paulo). Configuração já aplicada:
 - Credenciais públicas em [`src/lib/supabase.ts`](src/lib/supabase.ts) (Project URL + publishable key).
 - Tabelas e políticas de segurança: [`supabase/migrations/001_esquema_inicial.sql`](supabase/migrations/001_esquema_inicial.sql) (já executado no SQL Editor).
 - Reprodutores, assinaturas e funções de administração: [`supabase/migrations/002_reprodutores_e_assinaturas.sql`](supabase/migrations/002_reprodutores_e_assinaturas.sql) (já executado).
-- Base de exemplo (10.000 leitões) da conta da Karen: [`supabase/seed/base_exemplo_karen.sql`](supabase/seed/base_exemplo_karen.sql) (já executado).
+- Base de demonstração (50 leitões, uma situação de cada) da conta da Karen: [`supabase/seed/base_exemplo_karen.sql`](supabase/seed/base_exemplo_karen.sql) (já executado). Base grande para teste de desempenho: [`supabase/seed/base_grande_10mil.sql`](supabase/seed/base_grande_10mil.sql).
 - Authentication → Email: **Confirm email** ativado; senha com mínimo de 8 caracteres, letras e números.
 - Authentication → URL Configuration: Site URL `http://localhost:8080` e Redirect URL `http://localhost:8080/**`.
 

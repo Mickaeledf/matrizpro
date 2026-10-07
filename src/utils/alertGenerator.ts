@@ -15,6 +15,11 @@ export function gerarAlertasDinamicos(
   // --- Alertas por Lote ---
   lotes.filter((l) => l.status === 'Ativo').forEach((lote) => {
     const linkLote = `/lotes/${lote.id}`;
+    // Cada alerta leva direto ao lugar onde a ação é feita
+    const linkVacinas = `${linkLote}?aba=vacinas`;
+    const linkPesagem = `${linkLote}?acao=pesagem`;
+    // O desmame é registrado no ciclo da matriz (se o lote tiver matriz vinculada)
+    const linkDesmame = lote.matrizId && matrizes.some((m) => m.id === lote.matrizId) ? `/matrizes/${lote.matrizId}` : linkLote;
     const idadeDias = diasEntre(lote.dataParto, hoje);
 
     // Vacinas pendentes do lote
@@ -29,7 +34,7 @@ export function gerarAlertasDinamicos(
           severidade: 'critical',
           data: dataHoje,
           loteId: lote.id,
-          link: linkLote,
+          link: linkVacinas,
         });
       } else if (diasAteVacina <= config.antecedenciaVacinaDias) {
         alertas.push({
@@ -43,7 +48,7 @@ export function gerarAlertasDinamicos(
           severidade: diasAteVacina <= 1 ? 'critical' : 'warning',
           data: dataHoje,
           loteId: lote.id,
-          link: linkLote,
+          link: linkVacinas,
         });
       }
     });
@@ -60,7 +65,7 @@ export function gerarAlertasDinamicos(
         severidade: 'info',
         data: dataHoje,
         loteId: lote.id,
-        link: linkLote,
+        link: linkPesagem,
       });
     }
 
@@ -78,7 +83,7 @@ export function gerarAlertasDinamicos(
         severidade: diasParaDesmame < 0 ? 'warning' : 'info',
         data: dataHoje,
         loteId: lote.id,
-        link: linkLote,
+        link: linkDesmame,
       });
     }
 

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useStore } from "@/store/useStore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,9 @@ export default function LotesPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Lote | null>(null);
   const [busca, setBusca] = useState("");
-  const [filtroStatus, setFiltroStatus] = useState("todos");
+  // O filtro pode vir pronto do Painel (ex.: /lotes?status=Ativo)
+  const [searchParams] = useSearchParams();
+  const [filtroStatus, setFiltroStatus] = useState(searchParams.get("status") ?? "todos");
 
   const filtrados = useMemo(
     () =>

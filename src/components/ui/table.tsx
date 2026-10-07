@@ -30,11 +30,29 @@ const TableFooter = React.forwardRef<HTMLTableSectionElement, React.HTMLAttribut
 );
 TableFooter.displayName = "TableFooter";
 
+// Só linhas com onClick ganham destaque, cursor de "mãozinha" e acesso pelo teclado (Tab + Enter).
+// Linhas sem ação não devem parecer clicáveis.
 const TableRow = React.forwardRef<HTMLTableRowElement, React.HTMLAttributes<HTMLTableRowElement>>(
-  ({ className, ...props }, ref) => (
+  ({ className, onClick, onKeyDown, ...props }, ref) => (
     <tr
       ref={ref}
-      className={cn("border-b transition-colors data-[state=selected]:bg-muted hover:bg-muted/50", className)}
+      onClick={onClick}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              onKeyDown?.(e);
+              if (e.key === "Enter" && e.target === e.currentTarget) {
+                e.currentTarget.click();
+              }
+            }
+          : onKeyDown
+      }
+      className={cn(
+        "border-b transition-colors data-[state=selected]:bg-muted",
+        onClick && "cursor-pointer hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none",
+        className
+      )}
       {...props}
     />
   ),

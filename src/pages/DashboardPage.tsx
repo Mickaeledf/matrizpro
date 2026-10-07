@@ -68,8 +68,8 @@ export default function DashboardPage() {
   const dadosGPD = useMemo(
     () =>
       lotesAtivos
-        .map((l) => ({ lote: l.nome, gpd: estatisticasLote(l).gpdMedio }))
-        .filter((d): d is { lote: string; gpd: number } => d.gpd !== null)
+        .map((l) => ({ id: l.id, lote: l.nome, gpd: estatisticasLote(l).gpdMedio }))
+        .filter((d): d is { id: string; lote: string; gpd: number } => d.gpd !== null)
         .map((d) => ({ ...d, gpd: Math.round(d.gpd * 1000) })),
     [lotesAtivos]
   );
@@ -83,28 +83,32 @@ export default function DashboardPage() {
           ? "Nenhum lote ativo"
           : `${lotesAtivos.length} lote(s) ativo(s)${estimados > 0 ? ` · ${estimados} sem cadastro individual` : ""}`,
       icon: Layers,
-      link: "/lotes",
+      link: "/lotes?status=Ativo",
+      dica: "Ver os lotes ativos",
     },
     {
       label: "Peso Médio",
       value: `${formatarNumero(pesoMedio)} kg`,
       sub: todosLeitoes.length > 0 ? `${todosLeitoes.length} leitões acompanhados` : "Cadastre leitões para acompanhar",
       icon: Scale,
-      link: "/analise",
+      link: "/analise?aba=crescimento",
+      dica: "Ver a curva de crescimento",
     },
     {
       label: "Saúde do Rebanho",
       value: animaisCriticos > 0 ? `${animaisCriticos} alerta(s)` : "Estável",
       sub: todosLeitoes.length > 0 ? `${animaisSaudaveis}/${todosLeitoes.length} saudáveis` : "Sem animais cadastrados",
       icon: Heart,
-      link: "/lotes",
+      link: "/analise?aba=custos",
+      dica: "Ver os animais que precisam de atenção",
     },
     {
       label: "Matrizes Ativas",
       value: matrizesAtivas.length.toString(),
       sub: `${matrizesAtivas.filter((m) => m.statusReprodutivo === "Gestante").length} gestante(s) · ${matrizesAtivas.filter((m) => m.statusReprodutivo === "Lactante").length} lactante(s)`,
       icon: GitBranch,
-      link: "/matrizes",
+      link: "/matrizes?status=Ativa",
+      dica: "Ver as matrizes ativas",
     },
   ];
 
@@ -120,8 +124,13 @@ export default function DashboardPage() {
             {kpis.map((kpi) => (
               <Card
                 key={kpi.label}
-                className="cursor-pointer border border-border transition-shadow hover:shadow-md"
+                role="link"
+                tabIndex={0}
+                title={kpi.dica}
+                aria-label={`${kpi.label}: ${kpi.value}. ${kpi.dica}`}
+                className="cursor-pointer border border-border transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={() => navigate(kpi.link)}
+                onKeyDown={(e) => e.key === "Enter" && navigate(kpi.link)}
               >
                 <CardContent className="p-4">
                   <div className="mb-3 flex items-start justify-between">
@@ -161,7 +170,14 @@ export default function DashboardPage() {
                     <XAxis dataKey="lote" tickLine={false} axisLine={false} />
                     <YAxis tickLine={false} axisLine={false} />
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="gpd" fill="var(--color-gpd)" radius={[4, 4, 0, 0]} maxBarSize={60} />
+                    <Bar
+                      dataKey="gpd"
+                      fill="var(--color-gpd)"
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={60}
+                      className="cursor-pointer"
+                      onClick={(d: { payload?: { id?: string } }) => d.payload?.id && navigate(`/lotes/${d.payload.id}`)}
+                    />
                   </BarChart>
                 </ChartContainer>
               )}
@@ -187,8 +203,15 @@ export default function DashboardPage() {
                   return (
                     <div
                       key={alerta.id}
-                      className={cn("cursor-pointer rounded-lg p-3 transition-shadow hover:shadow-sm", alertColors[alerta.severidade])}
+                      role="link"
+                      tabIndex={0}
+                      title="Abrir"
+                      className={cn(
+                        "cursor-pointer rounded-lg p-3 transition-shadow hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        alertColors[alerta.severidade]
+                      )}
                       onClick={() => navigate(alerta.link || "/lotes")}
+                      onKeyDown={(e) => e.key === "Enter" && navigate(alerta.link || "/lotes")}
                     >
                       <div className="flex items-start gap-2">
                         <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", alertTitleColors[alerta.severidade])} />

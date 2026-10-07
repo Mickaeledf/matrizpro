@@ -167,7 +167,14 @@ export default function MatrizDetalhePage() {
                       <TableCell>{formatarData(c.dataCobertura)}</TableCell>
                       <TableCell className="whitespace-nowrap">
                         {c.tipoCobertura}
-                        {c.reprodutor && <span className="block text-xs text-muted-foreground">{c.reprodutor}</span>}
+                        {c.reprodutor &&
+                          (c.reprodutorId ? (
+                            <Link to="/reprodutores" className="block text-xs text-primary underline-offset-2 hover:underline">
+                              {c.reprodutor}
+                            </Link>
+                          ) : (
+                            <span className="block text-xs text-muted-foreground">{c.reprodutor}</span>
+                          ))}
                       </TableCell>
                       <TableCell>{formatarData(c.dataPrevistaParto)}</TableCell>
                       <TableCell>{formatarData(c.dataParto)}</TableCell>

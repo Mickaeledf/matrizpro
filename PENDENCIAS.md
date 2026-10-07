@@ -49,9 +49,10 @@ Quase tudo se altera num único arquivo: **`src/config/negocio.ts`**.
 
 ## 🧪 Dados de exemplo
 
-- A sua conta tem uma **base de demonstração**: 115 matrizes, 6 reprodutores, 789 leitegadas e **10.000 leitões** (2022 até hoje).
+- A sua conta tem uma **base de demonstração com 50 leitões**, montada para mostrar cada situação do sistema (todos os tipos de alerta, todos os status de matriz, leitão doente, vacina atrasada, lote vendido...). As datas são relativas ao dia em que o script roda.
 - Quando quiser começar com dados reais: **Configurações → Remover dados de exemplo** (apaga só a demonstração).
-- Para recriar a base: rodar `supabase/seed/base_exemplo_karen.sql` no SQL Editor do Supabase.
+- Para recriar a base (com as datas atualizadas para hoje): rodar `supabase/seed/base_exemplo_karen.sql` no SQL Editor do Supabase.
+- Existe também `supabase/seed/base_grande_10mil.sql` (10.000 leitões), só para testar desempenho.
 
 ## 🧹 Outros
 
