@@ -65,12 +65,7 @@ export function AppSidebar({ onNavigate, className }: { onNavigate?: () => void;
         ))}
       </nav>
 
-      <div className="border-t border-sidebar-custom-hover px-3 py-4">
-        <NavLink
-          to="/configuracoes"
-          onClick={onNavigate}
-          className={linkClass(estaAtivo(location.pathname, "/configuracoes"))}
-        >
+      <div className="space-y-1 border-t border-sidebar-custom-hover px-3 py-4">
         <NavLink to="/suporte" onClick={onNavigate} className={linkClass(estaAtivo(location.pathname, "/suporte"))}>
           <LifeBuoy className="h-4 w-4" />
           Suporte
@@ -85,6 +80,11 @@ export function AppSidebar({ onNavigate, className }: { onNavigate?: () => void;
             Assinantes
           </NavLink>
         )}
+        <NavLink
+          to="/configuracoes"
+          onClick={onNavigate}
+          className={linkClass(estaAtivo(location.pathname, "/configuracoes"))}
+        >
           <Settings className="h-4 w-4" />
           Configurações
         </NavLink>

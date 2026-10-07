@@ -55,6 +55,7 @@ Quase tudo se altera num único arquivo: **`src/config/negocio.ts`**.
 
 ## 🧹 Outros
 
+- [ ] **Migrar o Tailwind CSS 3 → 4** (fecha os 8 alertas de segurança restantes do `npm audit`). São alertas só da ferramenta de build do CSS, não afetam quem usa o site — mas a migração reescreve a configuração de estilos e precisa de revisão visual de todas as telas.
 - [ ] A senha do banco de dados (gerada pelo Supabase) não foi anotada — se algum dia precisar, redefinir em Supabase → Project Settings → Database.
 - [ ] Desativar o tradutor automático do Chrome no site do Supabase (ele trava o painel).
 

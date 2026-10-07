@@ -1,5 +1,5 @@
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react-swc";
+import react from "@vitejs/plugin-react";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
@@ -14,19 +14,21 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   build: {
-    rollupOptions: {
+    rolldownOptions: {
       output: {
         // Bibliotecas grandes em arquivos separados (melhor cache entre versões)
-        manualChunks: {
-          supabase: ["@supabase/supabase-js"],
-          react: ["react", "react-dom", "react-router-dom"],
+        codeSplitting: {
+          groups: [
+            { name: "supabase", test: /node_modules[\\/]@supabase[\\/]/ },
+            { name: "react", test: /node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/ },
+          ],
         },
       },
     },
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(import.meta.dirname, "./src"),
     },
     dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
   },
