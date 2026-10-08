@@ -5,6 +5,7 @@ import { traduzirErroAuth } from "@/lib/authValidacao";
 import { encerrarSincronizacao, definirDonoLocal } from "@/lib/sincronizacao";
 import { useStore } from "@/store/useStore";
 import { useAssinatura } from "@/lib/assinatura";
+import { useMensagens } from "@/lib/mensagens";
 import { AuthContext, AuthContextValue } from "./auth";
 
 /** Para onde o link de confirmação do email leva o usuário de volta. */
@@ -87,6 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     useStore.getState().resetarDados();
     definirDonoLocal(null);
     useAssinatura.getState().limpar();
+    useMensagens.getState().limpar();
     setSession(null);
   }, []);
 

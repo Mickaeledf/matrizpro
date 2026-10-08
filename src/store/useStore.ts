@@ -13,6 +13,7 @@ import {
   Configuracoes,
   TipoCobertura,
   Reprodutor,
+  Venda,
 } from '@/types';
 import { hojeISO, somarDias } from '@/lib/date';
 
@@ -92,6 +93,17 @@ interface AppState extends DadosApp {
   resetarDados: () => void;
   /** Remove somente os registros da base de demonstração (origem = "exemplo") */
   removerDadosExemplo: () => void;
+
+  /** Vende um ou mais leitões do lote (cada um com seu valor). Retorna o id da venda. */
+  registrarVendaLeitoes: (
+    loteId: string,
+    itens: { leitaoId: string; valor: number; pesoKg?: number }[],
+    dados: { data: string; comprador?: string }
+  ) => string;
+  desfazerVendaLeitoes: (loteId: string, vendaId: string) => void;
+  /** Venda de descarte de matriz ou reprodutor */
+  registrarVendaAnimal: (tipo: 'matriz' | 'reprodutor', id: string, venda: Omit<Venda, 'vendaId'>) => void;
+  desfazerVendaAnimal: (tipo: 'matriz' | 'reprodutor', id: string) => void;
 }
 
 const generateId = () => crypto.randomUUID();
@@ -499,6 +511,78 @@ export const useStore = create<AppState>()(
       importarDados: (dados) => set(normalizarDados(dados)),
 
       resetarDados: () => set(estadoInicial),
+
+      registrarVendaLeitoes: (loteId, itens, dados) => {
+        const vendaId = generateId();
+        const porLeitao = new Map(itens.map((i) => [i.leitaoId, i]));
+        set((state) => ({
+          lotes: mapLote(state.lotes, loteId, (l) => {
+            const leitoes = l.leitoes.map((lt) => {
+              const item = porLeitao.get(lt.id);
+              if (!item) return lt;
+              // O peso de venda também entra como pesagem (se for diferente do último peso)
+              const comPesagem =
+                item.pesoKg && item.pesoKg !== lt.pesoAtual
+                  ? recalcularPesoAtual({
+                      ...lt,
+                      pesagens: [...lt.pesagens, { id: generateId(), leitaoId: lt.id, peso: item.pesoKg, data: dados.data }],
+                    })
+                  : lt;
+              return {
+                ...comPesagem,
+                status: 'Vendido' as const,
+                venda: { vendaId, data: dados.data, valor: item.valor, pesoKg: item.pesoKg, comprador: dados.comprador },
+              };
+            });
+            // Sem nenhum leitão vivo no lote, ele passa a "Vendido" automaticamente
+            const restamVivos = leitoes.some((lt) => lt.status === 'Ativo');
+            return { ...l, leitoes, status: restamVivos ? l.status : 'Vendido' };
+          }),
+        }));
+        return vendaId;
+      },
+
+      desfazerVendaLeitoes: (loteId, vendaId) =>
+        set((state) => ({
+          lotes: mapLote(state.lotes, loteId, (l) => ({
+            ...l,
+            status: l.status === 'Vendido' ? (l.dataDesmame ? 'Desmamado' : 'Ativo') : l.status,
+            leitoes: l.leitoes.map((lt) =>
+              lt.venda?.vendaId === vendaId ? { ...lt, status: 'Ativo' as const, venda: undefined } : lt
+            ),
+          })),
+        })),
+
+      registrarVendaAnimal: (tipo, id, venda) => {
+        const registro = { ...venda, vendaId: generateId() };
+        if (tipo === 'matriz') {
+          set((state) => ({
+            matrizes: state.matrizes.map((m) =>
+              m.id === id ? { ...m, status: 'Descartada' as const, statusReprodutivo: 'Vazia' as const, venda: registro } : m
+            ),
+          }));
+        } else {
+          set((state) => ({
+            reprodutores: state.reprodutores.map((r) =>
+              r.id === id ? { ...r, status: 'Descartado' as const, venda: registro } : r
+            ),
+          }));
+        }
+      },
+
+      desfazerVendaAnimal: (tipo, id) => {
+        if (tipo === 'matriz') {
+          set((state) => ({
+            matrizes: state.matrizes.map((m) => (m.id === id ? { ...m, status: 'Ativa' as const, venda: undefined } : m)),
+          }));
+        } else {
+          set((state) => ({
+            reprodutores: state.reprodutores.map((r) =>
+              r.id === id ? { ...r, status: 'Ativo' as const, venda: undefined } : r
+            ),
+          }));
+        }
+      },
 
       removerDadosExemplo: () =>
         set((state) => ({

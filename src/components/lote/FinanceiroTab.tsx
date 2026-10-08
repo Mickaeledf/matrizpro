@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { z } from "zod";
 import { Trash2 } from "lucide-react";
 import { useStore } from "@/store/useStore";
@@ -14,7 +15,8 @@ import { estatisticasLote } from "@/utils/metricas";
 import { cn } from "@/lib/utils";
 
 const categoriasCusto: CategoriaLancamento[] = ["Ração", "Medicamentos", "Vacinas", "Mão de obra", "Instalações", "Outros"];
-const categoriasReceita: CategoriaLancamento[] = ["Venda de leitões", "Outros"];
+// Venda de leitões é registrada pelo botão de venda (cada leitão com seu valor), não como lançamento manual
+const categoriasReceita: CategoriaLancamento[] = ["Outros"];
 
 export function FinanceiroTab({ lote }: { lote: Lote }) {
   const { addLancamento, deleteLancamento } = useStore();
@@ -50,7 +52,11 @@ export function FinanceiroTab({ lote }: { lote: Lote }) {
 
   const resumo = [
     { label: "Custos", valor: formatarMoeda(est.totalCustos), sub: est.custosSaude > 0 ? `inclui ${formatarMoeda(est.custosSaude)} de saúde` : undefined },
-    { label: "Receitas", valor: formatarMoeda(est.totalReceitas) },
+    {
+      label: "Receitas",
+      valor: formatarMoeda(est.totalReceitas),
+      sub: est.receitaVendas > 0 ? `inclui ${formatarMoeda(est.receitaVendas)} em vendas de leitões` : undefined,
+    },
     { label: "Saldo", valor: formatarMoeda(est.saldo), cor: est.saldo < 0 ? "text-destructive" : "text-success" },
     { label: "Custo por kg produzido", valor: est.custoPorKg !== null ? formatarMoeda(est.custoPorKg) : "—" },
   ];
@@ -67,12 +73,21 @@ export function FinanceiroTab({ lote }: { lote: Lote }) {
         ))}
       </div>
 
+      <p className="text-sm text-muted-foreground">
+        Lance aqui os custos do lote (ração, vacinas, medicamentos, mão de obra). As vendas de leitões são feitas pelo
+        botão <strong>Vender leitões</strong> e aparecem também em{" "}
+        <Link to="/faturamento" className="text-primary underline-offset-2 hover:underline">
+          Faturamento
+        </Link>
+        .
+      </p>
+
       <div className="grid items-start gap-3 rounded-lg border p-3 sm:grid-cols-2 lg:grid-cols-[140px_170px_1fr_130px_160px_auto]">
         <Campo label="Tipo">
           <Select
             value={form.tipo}
             onValueChange={(v) =>
-              setForm({ ...form, tipo: v as TipoLancamento, categoria: v === "custo" ? "Ração" : "Venda de leitões" })
+              setForm({ ...form, tipo: v as TipoLancamento, categoria: v === "custo" ? "Ração" : "Outros" })
             }
           >
             <SelectTrigger>

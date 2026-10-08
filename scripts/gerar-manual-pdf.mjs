@@ -14,6 +14,7 @@ const raiz = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const manual = JSON.parse(readFileSync(path.join(raiz, "src/content/manual.json"), "utf8"));
 const destino = path.join(raiz, "public/manual-matrizpro.pdf");
 
+const logo = `data:image/png;base64,${readFileSync(path.join(raiz, "public/logo-branca.png")).toString("base64")}`;
 const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const data = new Date().toLocaleDateString("pt-BR");
 
@@ -23,7 +24,8 @@ const html = `<!doctype html>
   @page { size: A4; margin: 18mm 16mm; }
   * { box-sizing: border-box; }
   body { font-family: "Segoe UI", Arial, sans-serif; color: #1f2a24; font-size: 11.5pt; line-height: 1.5; margin: 0; }
-  .capa { background: linear-gradient(180deg, #21523b, #173b2a); color: #eef3ef; padding: 28px 30px; border-radius: 10px; margin-bottom: 22px; }
+  .capa { background: linear-gradient(180deg, #21523b, #173b2a); color: #eef3ef; padding: 28px 30px; border-radius: 10px; margin-bottom: 22px; display: flex; gap: 24px; align-items: center; }
+  .capa img { width: 120px; height: 120px; }
   .capa .marca { font-size: 13pt; font-weight: 700; letter-spacing: .3px; opacity: .9; }
   .capa h1 { margin: 10px 0 4px; font-size: 24pt; }
   .capa p { margin: 0; opacity: .85; }
@@ -37,9 +39,12 @@ const html = `<!doctype html>
 </style></head>
 <body>
   <div class="capa">
-    <div class="marca">MatrizPro</div>
-    <h1>${esc(manual.titulo)}</h1>
-    <p>${esc(manual.subtitulo)}</p>
+    <img src="${logo}" alt="">
+    <div>
+      <div class="marca">MatrizPro</div>
+      <h1>${esc(manual.titulo)}</h1>
+      <p>${esc(manual.subtitulo)}</p>
+    </div>
   </div>
   ${manual.secoes
     .map((s) => `<h2>${esc(s.titulo)}</h2><ul>${s.itens.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>`)

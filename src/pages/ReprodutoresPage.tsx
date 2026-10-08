@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
-import { Pencil, PlusCircle, Trash2 } from "lucide-react";
+import { Pencil, PlusCircle, Trash2, Wallet } from "lucide-react";
 import { useStore } from "@/store/useStore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,9 +12,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Campo } from "@/components/Campo";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useConfirm } from "@/components/ConfirmDialog";
-import { Reprodutor, StatusReprodutor } from "@/types";
-import { formatarData, formatarNumero, hojeISO } from "@/lib/date";
-import { campoDataNaoFutura, ErrosFormulario, textoObrigatorio, validar } from "@/lib/validacao";
+import { Procedencia, Reprodutor, StatusReprodutor } from "@/types";
+import { ProcedenciaCampos, procedenciaPadrao, validarPrecoCompra } from "@/components/ProcedenciaCampos";
+import { VendaAnimalDialog } from "@/components/venda/VendaDialogs";
+import { formatarData, formatarMoeda, formatarNumero, hojeISO } from "@/lib/date";
+import { campoDataNaoFutura, ErrosFormulario, numero, textoObrigatorio, validar } from "@/lib/validacao";
 
 const RACAS = ["Duroc", "Pietrain", "Large White", "Landrace", "Hampshire", "Sintético", "Outra"];
 
@@ -48,6 +50,8 @@ function ReprodutorDialog({
     dataNascimento: hojeISO(),
     dataEntrada: hojeISO(),
     status: "Ativo" as StatusReprodutor,
+    procedencia: "Comprada" as Procedencia,
+    preco: "",
     observacoes: "",
   };
   const [form, setForm] = useState(vazio);
@@ -64,6 +68,8 @@ function ReprodutorDialog({
             dataNascimento: reprodutor.dataNascimento,
             dataEntrada: reprodutor.dataEntrada,
             status: reprodutor.status,
+            procedencia: reprodutor.procedencia ?? procedenciaPadrao(reprodutor.precoAquisicao),
+            preco: reprodutor.precoAquisicao ? String(reprodutor.precoAquisicao) : "",
             observacoes: reprodutor.observacoes || "",
           }
         : vazio
@@ -73,13 +79,19 @@ function ReprodutorDialog({
 
   const salvar = () => {
     const r = validar(schema, form);
-    if (!r.ok) return setErros(r.erros);
+    const erroPreco = validarPrecoCompra(form.procedencia, form.preco);
+    if (!r.ok || erroPreco) return setErros({ ...(r.ok ? {} : r.erros), ...(erroPreco ? { preco: erroPreco } : {}) });
+    const dados = {
+      ...r.dados,
+      procedencia: form.procedencia,
+      precoAquisicao: form.procedencia === "Comprada" ? numero(form.preco) : 0,
+    };
     const duplicado = reprodutores.some(
       (x) => x.id !== reprodutor?.id && x.identificador.trim().toLowerCase() === r.dados.identificador.toLowerCase()
     );
     if (duplicado) return setErros({ identificador: "Já existe um reprodutor com este identificador." });
-    if (reprodutor) updateReprodutor(reprodutor.id, r.dados);
-    else addReprodutor(r.dados);
+    if (reprodutor) updateReprodutor(reprodutor.id, dados);
+    else addReprodutor(dados);
     onOpenChange(false);
   };
 
@@ -122,8 +134,19 @@ function ReprodutorDialog({
               <Input type="date" value={form.dataEntrada} onChange={(e) => setForm({ ...form, dataEntrada: e.target.value })} />
             </Campo>
           </div>
-          <Campo label="Situação">
-            <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as StatusReprodutor })}>
+          <ProcedenciaCampos
+            feminino={false}
+            procedencia={form.procedencia}
+            preco={form.preco}
+            erro={erros.preco}
+            onChange={(v) => setForm({ ...form, procedencia: v.procedencia, preco: v.preco })}
+          />
+          <Campo label="Situação" ajuda={reprodutor?.venda ? "Vendido — para desfazer, use o Faturamento." : undefined}>
+            <Select
+              value={form.status}
+              onValueChange={(v) => setForm({ ...form, status: v as StatusReprodutor })}
+              disabled={!!reprodutor?.venda}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -154,6 +177,7 @@ export default function ReprodutoresPage() {
   const { confirmar, dialog } = useConfirm();
   const [open, setOpen] = useState(false);
   const [editando, setEditando] = useState<Reprodutor | null>(null);
+  const [vendendo, setVendendo] = useState<Reprodutor | null>(null);
 
   // Desempenho de cada reprodutor a partir dos ciclos das matrizes
   const desempenho = useMemo(() => {
@@ -209,6 +233,7 @@ export default function ReprodutoresPage() {
                 <TableRow>
                   <TableHead>Identificador</TableHead>
                   <TableHead>Raça</TableHead>
+                  <TableHead>Procedência</TableHead>
                   <TableHead>Entrada</TableHead>
                   <TableHead>Situação</TableHead>
                   <TableHead>Coberturas</TableHead>
@@ -226,6 +251,14 @@ export default function ReprodutoresPage() {
                     <TableRow key={r.id}>
                       <TableCell className="font-medium">{r.identificador}</TableCell>
                       <TableCell>{r.raca}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {(r.procedencia ?? procedenciaPadrao(r.precoAquisicao)) === "Comprada"
+                          ? `Comprado · ${formatarMoeda(r.precoAquisicao ?? 0)}`
+                          : "Nascido aqui"}
+                        {r.venda && (
+                          <span className="block text-xs text-success">Vendido · {formatarMoeda(r.venda.valor)}</span>
+                        )}
+                      </TableCell>
                       <TableCell>{formatarData(r.dataEntrada)}</TableCell>
                       <TableCell>
                         <StatusBadge status={r.status} />
@@ -236,6 +269,17 @@ export default function ReprodutoresPage() {
                       <TableCell>{formatarData(d?.ultima)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
+                          {!r.venda && r.status !== "Descartado" && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Vender"
+                              title="Vender (descarte)"
+                              onClick={() => setVendendo(r)}
+                            >
+                              <Wallet className="h-4 w-4 text-success" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
@@ -273,6 +317,15 @@ export default function ReprodutoresPage() {
         </CardContent>
       </Card>
       <ReprodutorDialog open={open} onOpenChange={setOpen} reprodutor={editando} />
+      {vendendo && (
+        <VendaAnimalDialog
+          open={!!vendendo}
+          onOpenChange={(o) => !o && setVendendo(null)}
+          tipo="reprodutor"
+          id={vendendo.id}
+          identificador={vendendo.identificador}
+        />
+      )}
       {dialog}
     </div>
   );

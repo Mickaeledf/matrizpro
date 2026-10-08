@@ -137,15 +137,23 @@ export function LeitaoFormDialog({
             />
           </Campo>
           <div className="grid grid-cols-2 gap-4">
-            <Campo label="Situação">
-              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as StatusLeitao })}>
+            <Campo
+              label="Situação"
+              ajuda={leitao?.venda ? "Vendido — para desfazer, use a aba Faturamento." : "Para vender, use o botão de venda."}
+            >
+              {/* "Vendido" só é definido pela venda (com valor), nunca à mão */}
+              <Select
+                value={form.status}
+                onValueChange={(v) => setForm({ ...form, status: v as StatusLeitao })}
+                disabled={!!leitao?.venda}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Ativo">Ativo</SelectItem>
                   <SelectItem value="Morto">Morto</SelectItem>
-                  <SelectItem value="Vendido">Vendido</SelectItem>
+                  {leitao?.venda && <SelectItem value="Vendido">Vendido</SelectItem>}
                 </SelectContent>
               </Select>
             </Campo>

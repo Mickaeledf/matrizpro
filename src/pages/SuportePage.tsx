@@ -3,7 +3,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useAssinatura } from "@/lib/assinatura";
-import { NEGOCIO, linkWhatsapp, valorMensalidadeTexto } from "@/config/negocio";
+import { NEGOCIO, PLANOS, linkWhatsapp } from "@/config/negocio";
+import { PlanosAssinatura } from "@/components/assinatura/PlanosAssinatura";
 import manual from "@/content/manual.json";
 
 const fmt = (d: Date) => d.toLocaleDateString("pt-BR");
@@ -18,10 +19,10 @@ export default function SuportePage() {
         return "Acesso ilimitado (conta da proprietária).";
       case "teste":
         return `Teste grátis até ${fmt(situacao.ate)} — faltam ${situacao.diasRestantes} dia(s).`;
-      case "mensal":
-        return `Plano mensal ativo até ${fmt(situacao.ate)}.`;
+      case "pago":
+        return `Plano ${PLANOS[situacao.plano].nome.toLowerCase()} ativo até ${fmt(situacao.ate)} (${situacao.diasRestantes} dia(s)).`;
       case "expirada":
-        return situacao.motivo === "teste" ? "Seu teste grátis terminou." : "Sua mensalidade venceu.";
+        return situacao.motivo === "teste" ? "Seu teste grátis terminou." : "Sua assinatura venceu.";
       case "bloqueada":
         return "Acesso suspenso. Fale com o suporte.";
       default:
@@ -80,25 +81,25 @@ export default function SuportePage() {
               <CreditCard className="h-5 w-5 text-info" />
               <h2 className="font-bold text-foreground">Sua assinatura</h2>
             </div>
-            <p className="text-sm text-foreground">{textoAssinatura}</p>
+            <p className="flex-1 text-sm text-foreground">{textoAssinatura}</p>
             {situacao.tipo !== "vitalicio" && (
-              <p className="mb-4 mt-1 flex-1 text-sm text-muted-foreground">Plano mensal: {valorMensalidadeTexto()}</p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Planos: mensal {PLANOS.mensal.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} ou semestral com 1 mês
+                grátis (abaixo).
+              </p>
             )}
-            {situacao.tipo !== "vitalicio" &&
-              (NEGOCIO.linkPagamento ? (
-                <Button asChild className="gap-2">
-                  <a href={NEGOCIO.linkPagamento} target="_blank" rel="noreferrer">
-                    <CreditCard className="h-4 w-4" /> Assinar / renovar
-                  </a>
-                </Button>
-              ) : (
-                <Button disabled variant="outline" className="gap-2">
-                  <CreditCard className="h-4 w-4" /> Pagamento online em breve
-                </Button>
-              ))}
           </CardContent>
         </Card>
       </div>
+
+      {situacao.tipo !== "vitalicio" && (
+        <Card className="border border-border">
+          <CardContent className="p-4 sm:p-6">
+            <h2 className="mb-4 text-lg font-bold text-foreground">Planos</h2>
+            <PlanosAssinatura />
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="border border-border">
         <CardContent className="p-4 sm:p-6">

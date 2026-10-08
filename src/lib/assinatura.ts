@@ -1,12 +1,13 @@
 import { create } from "zustand";
 import { supabase } from "@/lib/supabase";
+import { PlanoPago } from "@/config/negocio";
 
 /**
  * Situação da assinatura do usuário logado (tabela public.assinaturas).
  * O bloqueio de verdade acontece no banco (RLS); aqui é só para a interface.
  */
 
-export type Plano = "teste" | "mensal" | "vitalicio" | "bloqueado";
+export type Plano = "teste" | PlanoPago | "vitalicio" | "bloqueado";
 
 export interface RegistroAssinatura {
   plano: Plano;
@@ -19,7 +20,7 @@ export type SituacaoAssinatura =
   | { tipo: "carregando" }
   | { tipo: "vitalicio" }
   | { tipo: "teste"; diasRestantes: number; ate: Date }
-  | { tipo: "mensal"; diasRestantes: number; ate: Date }
+  | { tipo: "pago"; plano: PlanoPago; diasRestantes: number; ate: Date }
   | { tipo: "expirada"; motivo: "teste" | "mensalidade" }
   | { tipo: "bloqueada" };
 
@@ -33,7 +34,12 @@ export function calcularSituacao(registro: RegistroAssinatura | null, agora = ne
 
   const pagoAte = registro.pago_ate ? new Date(registro.pago_ate) : null;
   if (pagoAte && pagoAte > agora) {
-    return { tipo: "mensal", ate: pagoAte, diasRestantes: Math.ceil((pagoAte.getTime() - agora.getTime()) / MS_DIA) };
+    return {
+      tipo: "pago",
+      plano: registro.plano === "semestral" ? "semestral" : "mensal",
+      ate: pagoAte,
+      diasRestantes: Math.ceil((pagoAte.getTime() - agora.getTime()) / MS_DIA),
+    };
   }
   const testeAte = new Date(registro.teste_ate);
   if (testeAte > agora) {
@@ -43,7 +49,7 @@ export function calcularSituacao(registro: RegistroAssinatura | null, agora = ne
 }
 
 export const acessoLiberado = (s: SituacaoAssinatura) =>
-  s.tipo === "vitalicio" || s.tipo === "teste" || s.tipo === "mensal" || s.tipo === "carregando";
+  s.tipo === "vitalicio" || s.tipo === "teste" || s.tipo === "pago" || s.tipo === "carregando";
 
 interface EstadoAssinatura {
   situacao: SituacaoAssinatura;

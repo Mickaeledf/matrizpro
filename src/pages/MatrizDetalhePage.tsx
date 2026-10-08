@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Baby, Heart, Pencil, PlusCircle, Trash2, XCircle, Milk } from "lucide-react";
+import { ArrowLeft, Baby, Heart, Pencil, PlusCircle, Trash2, XCircle, Milk, Wallet } from "lucide-react";
 import { useStore } from "@/store/useStore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,8 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { MatrizFormDialog } from "@/components/matriz/MatrizFormDialog";
 import { CoberturaDialog, DesmameDialog, PartoDialog } from "@/components/matriz/CicloDialogs";
+import { VendaAnimalDialog } from "@/components/venda/VendaDialogs";
+import { procedenciaPadrao } from "@/components/ProcedenciaCampos";
 import { CicloReprodutivo } from "@/types";
 import { diasEntre, formatarData, formatarMoeda, formatarNumero } from "@/lib/date";
 
@@ -23,6 +25,7 @@ export default function MatrizDetalhePage() {
   const [cobertura, setCobertura] = useState(false);
   const [partoCiclo, setPartoCiclo] = useState<CicloReprodutivo | null>(null);
   const [desmameCiclo, setDesmameCiclo] = useState<CicloReprodutivo | null>(null);
+  const [vendendo, setVendendo] = useState(false);
 
   const lotesDaMatriz = useMemo(() => lotes.filter((l) => l.matrizId === id), [lotes, id]);
 
@@ -96,6 +99,18 @@ export default function MatrizDetalhePage() {
             <PlusCircle className="h-4 w-4" />
             Registrar Cobertura
           </Button>
+          {!matriz.venda && matriz.status !== "Descartada" && (
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => setVendendo(true)}
+              disabled={cicloAberto}
+              title={cicloAberto ? "Finalize o ciclo atual (parto e desmame) antes de vender." : "Vender para descarte"}
+            >
+              <Wallet className="h-4 w-4" />
+              Vender (descarte)
+            </Button>
+          )}
         </div>
       </div>
 
@@ -121,8 +136,17 @@ export default function MatrizDetalhePage() {
             <p className="font-medium">{formatarData(matriz.dataEntrada)}</p>
           </div>
           <div>
-            <p className="text-muted-foreground">Preço de aquisição</p>
-            <p className="font-medium">{formatarMoeda(matriz.precoAquisicao)}</p>
+            <p className="text-muted-foreground">Procedência</p>
+            <p className="font-medium">
+              {(matriz.procedencia ?? procedenciaPadrao(matriz.precoAquisicao)) === "Comprada"
+                ? `Comprada · ${formatarMoeda(matriz.precoAquisicao)}`
+                : "Nascida na granja"}
+            </p>
+            {matriz.venda && (
+              <p className="mt-1 text-success">
+                Vendida em {formatarData(matriz.venda.data)} · {formatarMoeda(matriz.venda.valor)}
+              </p>
+            )}
           </div>
           <div>
             <p className="text-muted-foreground">Idade</p>
@@ -290,6 +314,13 @@ export default function MatrizDetalhePage() {
         matriz={matriz}
         ciclo={partoCiclo}
         onSaved={(loteId) => navigate(`/lotes/${loteId}`)}
+      />
+      <VendaAnimalDialog
+        open={vendendo}
+        onOpenChange={setVendendo}
+        tipo="matriz"
+        id={matriz.id}
+        identificador={matriz.identificador}
       />
       <DesmameDialog
         open={!!desmameCiclo}

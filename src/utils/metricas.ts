@@ -53,6 +53,8 @@ export interface EstatisticasLote {
   gpdMedio: number | null;
   totalCustos: number;
   totalReceitas: number;
+  /** Receita das vendas de leitões registradas no Faturamento */
+  receitaVendas: number;
   custosSaude: number;
   saldo: number;
   kgProduzidos: number;
@@ -77,7 +79,9 @@ export function estatisticasLote(lote: Lote): EstatisticasLote {
     .reduce((acc, r) => acc + (r.custo || 0), 0);
   const totalCustos =
     lancamentos.filter((l) => l.tipo === "custo").reduce((acc, l) => acc + l.valor, 0) + custosSaude;
-  const totalReceitas = lancamentos.filter((l) => l.tipo === "receita").reduce((acc, l) => acc + l.valor, 0);
+  const receitaVendas = leitoes.reduce((acc, l) => acc + (l.venda?.valor ?? 0), 0);
+  const totalReceitas =
+    lancamentos.filter((l) => l.tipo === "receita").reduce((acc, l) => acc + l.valor, 0) + receitaVendas;
 
   const kgProduzidos = leitoes
     .filter((l) => l.status !== "Morto")
@@ -97,6 +101,7 @@ export function estatisticasLote(lote: Lote): EstatisticasLote {
     gpdMedio: gpds.length > 0 ? media(gpds) : null,
     totalCustos,
     totalReceitas,
+    receitaVendas,
     custosSaude,
     saldo: totalReceitas - totalCustos,
     kgProduzidos,

@@ -1,22 +1,27 @@
 import { Link } from "react-router-dom";
-import { Clock, CreditCard, LifeBuoy, Lock, MessageCircle } from "lucide-react";
+import { Clock, LifeBuoy, Lock, MessageCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SituacaoAssinatura } from "@/lib/assinatura";
-import { NEGOCIO, linkWhatsapp, valorMensalidadeTexto } from "@/config/negocio";
+import { NEGOCIO, PLANOS, linkWhatsapp } from "@/config/negocio";
+import { PlanosAssinatura } from "./PlanosAssinatura";
 import { cn } from "@/lib/utils";
 
-/** Faixa no topo durante o teste grátis (ou perto do vencimento da mensalidade). */
+/**
+ * Faixa no topo:
+ * - durante o teste grátis: até o teste acabar;
+ * - assinantes pagos: a partir de 10 dias antes do vencimento.
+ */
 export function FaixaAssinatura({ situacao }: { situacao: SituacaoAssinatura }) {
   const mostrar =
-    situacao.tipo === "teste" || (situacao.tipo === "mensal" && situacao.diasRestantes <= 5);
+    situacao.tipo === "teste" || (situacao.tipo === "pago" && situacao.diasRestantes <= NEGOCIO.diasAvisoRenovacao);
   if (!mostrar) return null;
 
   const urgente = situacao.diasRestantes <= 3;
   const texto =
     situacao.tipo === "teste"
       ? `Teste grátis: ${situacao.diasRestantes === 1 ? "último dia" : `faltam ${situacao.diasRestantes} dias`}.`
-      : `Sua mensalidade vence em ${situacao.diasRestantes} dia(s).`;
+      : `Seu plano ${PLANOS[situacao.plano].nome.toLowerCase()} vence em ${situacao.diasRestantes} dia(s).`;
 
   return (
     <div
@@ -27,8 +32,8 @@ export function FaixaAssinatura({ situacao }: { situacao: SituacaoAssinatura }) 
     >
       <Clock className="h-4 w-4 shrink-0" />
       <span>{texto}</span>
-      <Link to="/suporte" className="font-medium text-primary underline-offset-2 hover:underline">
-        Ver como assinar
+      <Link to={situacao.tipo === "teste" ? "/suporte" : "/mensagens"} className="font-medium text-primary underline-offset-2 hover:underline">
+        {situacao.tipo === "teste" ? "Ver planos" : "Renovar"}
       </Link>
     </div>
   );
@@ -41,7 +46,7 @@ export function TelaAssinaturaBloqueada({ situacao }: { situacao: SituacaoAssina
 
   return (
     <div className="flex min-h-[70vh] items-center justify-center py-8">
-      <Card className="w-full max-w-lg border border-border">
+      <Card className="w-full max-w-2xl border border-border">
         <CardContent className="p-6 text-center sm:p-8">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-warning/15">
             <Lock className="h-7 w-7 text-warning" />
@@ -50,48 +55,37 @@ export function TelaAssinaturaBloqueada({ situacao }: { situacao: SituacaoAssina
             {bloqueada
               ? "Acesso suspenso"
               : situacao.tipo === "expirada" && situacao.motivo === "mensalidade"
-                ? "Sua mensalidade venceu"
+                ? "Sua assinatura venceu"
                 : `Seu teste grátis de ${NEGOCIO.diasTeste} dias terminou`}
           </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
             {bloqueada
               ? "Seu acesso foi suspenso. Fale com o suporte para regularizar."
-              : "Para continuar usando o MatrizPro, assine o plano mensal. Todos os seus dados continuam guardados e voltam assim que o acesso for liberado."}
+              : "Escolha um plano para continuar. Todos os seus dados continuam guardados e voltam assim que o pagamento for confirmado."}
           </p>
 
           {!bloqueada && (
-            <div className="mt-6 rounded-lg bg-muted p-4">
-              <p className="text-sm text-muted-foreground">Plano mensal</p>
-              <p className="text-2xl font-bold text-foreground">{valorMensalidadeTexto()}</p>
+            <div className="mt-6">
+              <PlanosAssinatura />
             </div>
           )}
 
-          <div className="mt-6 flex flex-col gap-2">
-            {!bloqueada &&
-              (NEGOCIO.linkPagamento ? (
-                <Button asChild className="gap-2">
-                  <a href={NEGOCIO.linkPagamento} target="_blank" rel="noreferrer">
-                    <CreditCard className="h-4 w-4" /> Assinar agora
-                  </a>
-                </Button>
-              ) : (
-                <Button disabled className="gap-2">
-                  <CreditCard className="h-4 w-4" /> Pagamento online em breve
-                </Button>
-              ))}
-            {whatsapp ? (
+          <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
+            {whatsapp && (
               <Button asChild variant="outline" className="gap-2">
                 <a href={whatsapp} target="_blank" rel="noreferrer">
-                  <MessageCircle className="h-4 w-4" /> Falar com o suporte no WhatsApp
+                  <MessageCircle className="h-4 w-4" /> Falar com o suporte
                 </a>
               </Button>
-            ) : (
-              <Button asChild variant="outline" className="gap-2">
-                <Link to="/suporte">
-                  <LifeBuoy className="h-4 w-4" /> Ir para o Suporte
-                </Link>
-              </Button>
             )}
+            <Button asChild variant="ghost" className="gap-2">
+              <Link to="/mensagens">Ver minhas mensagens</Link>
+            </Button>
+            <Button asChild variant="ghost" className="gap-2">
+              <Link to="/suporte">
+                <LifeBuoy className="h-4 w-4" /> Suporte
+              </Link>
+            </Button>
           </div>
         </CardContent>
       </Card>

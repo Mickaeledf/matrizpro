@@ -1,12 +1,14 @@
 import { Suspense, useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
-import { GitBranch, Loader2, Menu } from "lucide-react";
+import { Loader2, Menu } from "lucide-react";
+import { Logo } from "@/components/Logo";
 import { AppSidebar } from "./AppSidebar";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/auth";
 import { iniciarSincronizacao } from "@/lib/sincronizacao";
 import { acessoLiberado, useAssinatura } from "@/lib/assinatura";
+import { useMensagens } from "@/lib/mensagens";
 import { FaixaAssinatura, TelaAssinaturaBloqueada } from "@/components/assinatura/AvisosAssinatura";
 
 const Carregando = ({ texto }: { texto: string }) => (
@@ -37,8 +39,17 @@ export function AppLayout() {
     if (userId) carregarAssinatura();
   }, [userId, carregarAssinatura]);
 
-  // Com o acesso vencido, só a aba Suporte continua disponível
-  const bloqueado = !acessoLiberado(situacao) && pathname !== "/suporte";
+  // Caixa de mensagens: carrega ao entrar e confere a cada 2 minutos
+  const carregarMensagens = useMensagens((s) => s.carregar);
+  useEffect(() => {
+    if (!userId || situacao.tipo === "carregando") return;
+    carregarMensagens(situacao);
+    const t = setInterval(() => carregarMensagens(situacao), 120_000);
+    return () => clearInterval(t);
+  }, [userId, situacao, carregarMensagens]);
+
+  // Com o acesso vencido, só Suporte e Mensagens continuam disponíveis
+  const bloqueado = !acessoLiberado(situacao) && pathname !== "/suporte" && pathname !== "/mensagens";
 
   return (
     <div className="flex h-screen flex-col overflow-hidden md:flex-row print:block print:h-auto print:overflow-visible">
@@ -56,7 +67,7 @@ export function AppLayout() {
         >
           <Menu className="h-5 w-5" />
         </Button>
-        <GitBranch className="h-5 w-5" />
+        <Logo className="h-7 w-7" />
         <span className="text-lg font-bold">MatrizPro</span>
       </header>
       <Sheet open={menuAberto} onOpenChange={setMenuAberto}>

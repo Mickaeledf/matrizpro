@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Campo } from "@/components/Campo";
-import { Matriz, StatusMatriz, StatusReprodutivo } from "@/types";
+import { Matriz, Procedencia, StatusMatriz, StatusReprodutivo } from "@/types";
+import { ProcedenciaCampos, procedenciaPadrao, validarPrecoCompra } from "@/components/ProcedenciaCampos";
 import { hojeISO } from "@/lib/date";
 import { campoDataNaoFutura, decimalNaoNegativo, ErrosFormulario, textoObrigatorio, numero, validar } from "@/lib/validacao";
 
@@ -32,6 +33,7 @@ const formVazio = () => ({
   raca: "",
   dataNascimento: hojeISO(),
   dataEntrada: hojeISO(),
+  procedencia: "Comprada" as Procedencia,
   precoAquisicao: "0",
   statusReprodutivo: "Vazia" as StatusReprodutivo,
   status: "Ativa" as StatusMatriz,
@@ -63,6 +65,7 @@ export function MatrizFormDialog({
             raca: matriz.raca || "",
             dataNascimento: matriz.dataNascimento,
             dataEntrada: matriz.dataEntrada,
+            procedencia: matriz.procedencia ?? procedenciaPadrao(matriz.precoAquisicao),
             precoAquisicao: String(matriz.precoAquisicao),
             statusReprodutivo: matriz.statusReprodutivo,
             status: matriz.status,
@@ -73,8 +76,12 @@ export function MatrizFormDialog({
   }, [open, matriz]);
 
   const handleSave = () => {
-    const resultado = validar(schema, { ...form, precoAquisicao: numero(form.precoAquisicao) });
-    if (!resultado.ok) return setErros(resultado.erros);
+    const resultado = validar(schema, { ...form, precoAquisicao: numero(form.precoAquisicao) || 0 });
+    const erroPreco = validarPrecoCompra(form.procedencia, form.precoAquisicao);
+    if (!resultado.ok || erroPreco) {
+      return setErros({ ...(resultado.ok ? {} : resultado.erros), ...(erroPreco ? { precoAquisicao: erroPreco } : {}) });
+    }
+    const dados = { ...resultado.dados, procedencia: form.procedencia };
 
     const duplicada = matrizes.some(
       (m) => m.id !== matriz?.id && m.identificador.trim().toLowerCase() === resultado.dados.identificador.toLowerCase()
@@ -82,10 +89,10 @@ export function MatrizFormDialog({
     if (duplicada) return setErros({ identificador: "Já existe uma matriz com este identificador." });
 
     if (matriz) {
-      updateMatriz(matriz.id, resultado.dados);
+      updateMatriz(matriz.id, dados);
       onSaved?.(matriz.id);
     } else {
-      onSaved?.(addMatriz(resultado.dados));
+      onSaved?.(addMatriz(dados));
     }
     onOpenChange(false);
   };
@@ -128,15 +135,12 @@ export function MatrizFormDialog({
               />
             </Campo>
           </div>
-          <Campo label="Preço de Aquisição (R$)" erro={erros.precoAquisicao} ajuda="Custo de compra da matriz.">
-            <Input
-              type="number"
-              min={0}
-              step="0.01"
-              value={form.precoAquisicao}
-              onChange={(e) => setForm({ ...form, precoAquisicao: e.target.value })}
-            />
-          </Campo>
+          <ProcedenciaCampos
+            procedencia={form.procedencia}
+            preco={form.precoAquisicao}
+            erro={erros.precoAquisicao}
+            onChange={(v) => setForm({ ...form, procedencia: v.procedencia, precoAquisicao: v.preco })}
+          />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Campo
               label={matriz ? "Status Reprodutivo" : "Status Reprodutivo Inicial"}
@@ -145,6 +149,7 @@ export function MatrizFormDialog({
               <Select
                 value={form.statusReprodutivo}
                 onValueChange={(v) => setForm({ ...form, statusReprodutivo: v as StatusReprodutivo })}
+                disabled={!!matriz}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -157,8 +162,12 @@ export function MatrizFormDialog({
                 </SelectContent>
               </Select>
             </Campo>
-            <Campo label="Status no Plantel">
-              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as StatusMatriz })}>
+            <Campo label="Status no Plantel" ajuda={matriz?.venda ? "Vendida — para desfazer, use o Faturamento." : undefined}>
+              <Select
+                value={form.status}
+                onValueChange={(v) => setForm({ ...form, status: v as StatusMatriz })}
+                disabled={!!matriz?.venda}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

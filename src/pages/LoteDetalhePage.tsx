@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, DollarSign, Pencil, PlusCircle, Scale, Syringe, Trash2, Users, Zap } from "lucide-react";
+import { ArrowLeft, DollarSign, Pencil, PlusCircle, Scale, Syringe, Trash2, Users, Wallet, Zap } from "lucide-react";
 import { useStore } from "@/store/useStore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,11 +10,12 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { LoteFormDialog } from "@/components/lote/LoteFormDialog";
 import { CadastroRapidoDialog, LeitaoFormDialog, PesagemLoteDialog } from "@/components/lote/LeitaoDialogs";
+import { VendaLeitoesDialog } from "@/components/venda/VendaDialogs";
 import { LeitaoDetalheSheet } from "@/components/lote/LeitaoDetalheSheet";
 import { VacinasTab } from "@/components/lote/VacinasTab";
 import { FinanceiroTab } from "@/components/lote/FinanceiroTab";
 import { Leitao } from "@/types";
-import { formatarData, formatarNumero } from "@/lib/date";
+import { formatarData, formatarMoeda, formatarNumero } from "@/lib/date";
 import { calcularGPD, estatisticasLote, leitoesAbaixoDaMedia } from "@/utils/metricas";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +30,7 @@ export default function LoteDetalhePage() {
   const [leitaoForm, setLeitaoForm] = useState<{ open: boolean; leitao: Leitao | null }>({ open: false, leitao: null });
   const [cadastroRapido, setCadastroRapido] = useState(false);
   const [pesagemLote, setPesagemLote] = useState(false);
+  const [venda, setVenda] = useState<{ open: boolean; selecionados?: string[] }>({ open: false });
 
   // Atalhos vindos dos alertas: ?aba=vacinas abre a aba certa; ?acao=pesagem já abre a pesagem do lote
   const aba = searchParams.get("aba") ?? "leitoes";
@@ -114,6 +116,16 @@ export default function LoteDetalhePage() {
           <Button className="gap-2" onClick={() => setPesagemLote(true)} disabled={est.ativos === 0}>
             <Scale className="h-4 w-4" />
             Pesagem do Lote
+          </Button>
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => setVenda({ open: true })}
+            disabled={est.ativos === 0}
+            title={est.ativos === 0 ? "Não há leitões vivos para vender" : undefined}
+          >
+            <Wallet className="h-4 w-4" />
+            Vender leitões
           </Button>
         </div>
       </div>
@@ -204,9 +216,25 @@ export default function LoteDetalhePage() {
                           </TableCell>
                           <TableCell>
                             <StatusBadge status={lt.status} />
+                            {lt.venda && (
+                              <span className="mt-1 block whitespace-nowrap text-xs text-muted-foreground">
+                                {formatarData(lt.venda.data)} · {formatarMoeda(lt.venda.valor)}
+                              </span>
+                            )}
                           </TableCell>
                           <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                             <div className="flex justify-end gap-1">
+                              {lt.status === "Ativo" && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label="Vender"
+                                  title="Vender este leitão"
+                                  onClick={() => setVenda({ open: true, selecionados: [lt.id] })}
+                                >
+                                  <Wallet className="h-4 w-4 text-success" />
+                                </Button>
+                              )}
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -215,6 +243,7 @@ export default function LoteDetalhePage() {
                               >
                                 <Pencil className="h-4 w-4" />
                               </Button>
+                              {!lt.venda && (
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -223,13 +252,14 @@ export default function LoteDetalhePage() {
                                   confirmar({
                                     titulo: `Excluir o leitão ${lt.identificador}?`,
                                     descricao:
-                                      "Pesagens e registros de saúde serão perdidos. Se o animal morreu ou foi vendido, prefira alterar a situação dele (isso mantém os indicadores corretos).",
+                                      "Pesagens e registros de saúde serão perdidos. Se o animal morreu, prefira alterar a situação para \"Morto\"; se foi vendido, use o botão de venda (isso mantém os indicadores e o faturamento corretos).",
                                     onConfirm: () => deleteLeitao(lote.id, lt.id),
                                   })
                                 }
                               >
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>
@@ -268,6 +298,12 @@ export default function LoteDetalhePage() {
       />
       <CadastroRapidoDialog open={cadastroRapido} onOpenChange={setCadastroRapido} lote={lote} />
       <PesagemLoteDialog open={pesagemLote} onOpenChange={setPesagemLote} lote={lote} />
+      <VendaLeitoesDialog
+        open={venda.open}
+        onOpenChange={(open) => setVenda((v) => ({ ...v, open }))}
+        lote={lote}
+        selecionadosIniciais={venda.selecionados}
+      />
       <LeitaoDetalheSheet lote={lote} leitao={leitaoSelecionado} onOpenChange={(o) => !o && abrirLeitao(null)} />
       {dialog}
     </div>

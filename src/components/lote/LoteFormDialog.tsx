@@ -155,15 +155,23 @@ export function LoteFormDialog({
           </div>
           {lote && (
             <div className="grid grid-cols-2 gap-4">
-              <Campo label="Status">
-                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as StatusLote })}>
+              <Campo
+                label="Status"
+                ajuda={lote.status === "Vendido" ? "Definido pelas vendas no Faturamento." : "\"Vendido\" é automático ao vender todos os leitões."}
+              >
+                {/* "Vendido" é consequência das vendas registradas, não se escolhe à mão */}
+                <Select
+                  value={form.status}
+                  onValueChange={(v) => setForm({ ...form, status: v as StatusLote })}
+                  disabled={lote.status === "Vendido"}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Ativo">Ativo</SelectItem>
                     <SelectItem value="Desmamado">Desmamado</SelectItem>
-                    <SelectItem value="Vendido">Vendido</SelectItem>
+                    {lote.status === "Vendido" && <SelectItem value="Vendido">Vendido</SelectItem>}
                     <SelectItem value="Finalizado">Finalizado</SelectItem>
                   </SelectContent>
                 </Select>

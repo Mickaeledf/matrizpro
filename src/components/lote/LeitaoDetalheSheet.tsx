@@ -83,13 +83,23 @@ export function LeitaoDetalheSheet({
   };
 
   const salvarSaude = () => {
+    // Tratamento, medicação e vacinação têm custo: obrigatório informar (pode ser 0).
+    const custoObrigatorio = saude.tipo !== "observacao";
     const r = validar(
       z.object({
         descricao: textoObrigatorio("Descreva o registro."),
         data: campoDataNaoFutura,
-        custo: decimalNaoNegativo.optional(),
+        custo: custoObrigatorio
+          ? z
+              .number({ invalid_type_error: "Informe o custo (use 0 se não teve custo)." })
+              .min(0, "O valor não pode ser negativo.")
+          : decimalNaoNegativo.optional(),
       }),
-      { descricao: saude.descricao, data: saude.data, custo: saude.custo.trim() ? numero(saude.custo) : undefined }
+      {
+        descricao: saude.descricao,
+        data: saude.data,
+        custo: saude.custo.trim() ? numero(saude.custo) : custoObrigatorio ? NaN : undefined,
+      }
     );
     if (!r.ok) return setErrosSaude(r.erros);
     addRegistroSaude(lote.id, leitao.id, {
@@ -252,7 +262,7 @@ export function LeitaoDetalheSheet({
             <Campo label="Veterinário">
               <Input value={saude.veterinario} onChange={(e) => setSaude({ ...saude, veterinario: e.target.value })} />
             </Campo>
-            <Campo label="Custo (R$)" erro={errosSaude.custo}>
+            <Campo label={saude.tipo === "observacao" ? "Custo (R$, opcional)" : "Custo (R$)"} erro={errosSaude.custo}>
               <Input
                 type="number"
                 min={0}

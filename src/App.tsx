@@ -22,6 +22,8 @@ const ConfiguracoesPage = lazy(() => import("@/pages/ConfiguracoesPage"));
 const ReprodutoresPage = lazy(() => import("@/pages/ReprodutoresPage"));
 const SuportePage = lazy(() => import("@/pages/SuportePage"));
 const AssinantesPage = lazy(() => import("@/pages/AssinantesPage"));
+const FaturamentoPage = lazy(() => import("@/pages/FaturamentoPage"));
+const MensagensPage = lazy(() => import("@/pages/MensagensPage"));
 
 const queryClient = new QueryClient();
 
@@ -47,6 +49,8 @@ const App = () => (
               <Route path="/matrizes/:id" element={<MatrizDetalhePage />} />
               <Route path="/lotes" element={<LotesPage />} />
               <Route path="/lotes/:id" element={<LoteDetalhePage />} />
+              <Route path="/faturamento" element={<FaturamentoPage />} />
+              <Route path="/mensagens" element={<MensagensPage />} />
               <Route path="/analise" element={<AnalisePage />} />
               <Route path="/relatorios" element={<RelatoriosPage />} />
               <Route path="/reprodutores" element={<ReprodutoresPage />} />

@@ -7,14 +7,19 @@ Quase tudo se altera num único arquivo: **`src/config/negocio.ts`**.
 
 ## 💰 Assinatura
 
-- [ ] **Valor da mensalidade:** R$ ________
-  → em `src/config/negocio.ts`, campo `valorMensalidade` (ex.: `valorMensalidade: 49.9,`).
-  Enquanto estiver vazio, o sistema mostra "valor a definir".
+- [x] **Plano mensal:** R$ 97,90 (30 dias).
+- [ ] **Plano semestral — CONFIRMAR o cálculo:** hoje está **R$ 489,50 por 6 meses** (paga 5 mensalidades, ganha 1 mês grátis).
+  Se a ideia for outra (ex.: pagar 6 meses = R$ 587,40 e ganhar o 7º mês), avise para ajustar.
+  → valores em `src/config/negocio.ts`, objeto `PLANOS`.
 
 - [ ] **Forma de pagamento** (escolher uma): ☐ Mercado Pago ☐ Asaas ☐ Stripe ☐ PIX manual ☐ outra: ________
-  → depois de criar o link de pagamento, colar em `linkPagamento` no mesmo arquivo.
-  → **Hoje a liberação é manual:** quando o cliente pagar, entre em **Assinantes** e clique em **"+30 dias pagos"**.
+  → criar **dois links** (mensal e semestral) e colar em `linksPagamento.mensal` e `linksPagamento.semestral` no mesmo arquivo.
+  Enquanto vazios, os botões mostram "Pagamento online em breve".
+  → **Hoje a liberação é manual:** quando o cliente pagar, entre em **Assinantes** e clique em **"Pagou mensal"** (+30 dias) ou **"Pagou semestral"** (+180 dias).
   → Próximo passo (opcional): ligar o pagamento automático (o gateway avisa o sistema e libera sozinho).
+
+- [x] **Aviso de renovação:** 10 dias antes de vencer, na faixa do topo **e** na caixa de Mensagens, com os links dos dois planos (`diasAvisoRenovacao` em `src/config/negocio.ts`).
+- [x] **Caixa de mensagens:** só a administradora (Karen) envia, em **Mensagens → Enviar mensagem** (para todos ou para uma pessoa); os usuários só leem.
 
 - [ ] **Teste grátis:** está em **10 dias**. Se quiser mudar, ajuste nos dois lugares:
   `diasTeste` em `src/config/negocio.ts` **e** o `interval '10 days'` em `supabase/migrations/002_reprodutores_e_assinaturas.sql` (rodar de novo no SQL Editor do Supabase).
@@ -44,7 +49,8 @@ Quase tudo se altera num único arquivo: **`src/config/negocio.ts`**.
 ## 📄 Jurídico / marca
 
 - [ ] Termos de uso e política de privacidade (LGPD) — exigidos para cobrar assinatura.
-- [ ] Logo e cores definitivas (hoje: verde do MatrizPro e ícone padrão).
+- [x] Logo: aplicada no menu, login, relatórios, manual em PDF e ícone do navegador (arquivos em `public/logo-*.png`).
+- [ ] Cores definitivas (hoje: verde do MatrizPro).
 - [ ] Nome da empresa/CNPJ para aparecer nos relatórios e recibos.
 
 ## 🧪 Dados de exemplo
@@ -66,8 +72,9 @@ Quase tudo se altera num único arquivo: **`src/config/negocio.ts`**.
 
 | O quê | Arquivo |
 |---|---|
-| Valor, WhatsApp, link de pagamento, dias de teste | `src/config/negocio.ts` |
+| Planos (mensal/semestral), WhatsApp, links de pagamento, dias de teste e de aviso | `src/config/negocio.ts` |
 | Texto do manual / perguntas frequentes | `src/content/manual.json` → `npm run manual` |
 | Regras do banco (teste, bloqueio, admin) | `supabase/migrations/002_reprodutores_e_assinaturas.sql` |
+| Plano semestral e caixa de mensagens | `supabase/migrations/003_planos_e_mensagens.sql` |
 | Base de exemplo | `supabase/seed/base_exemplo_karen.sql` |
 | Endereço e chave pública do Supabase | `src/lib/supabase.ts` |

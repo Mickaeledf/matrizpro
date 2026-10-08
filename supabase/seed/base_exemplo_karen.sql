@@ -18,8 +18,9 @@
 --   B  20 dias, Ativo     → vacina amanhã e em 4 dias, desmame amanhã,
 --                           pesagem amanhã, mortalidade e natimortos altos
 --   C  25 dias, Ativo     → desmame atrasado
---   D  45 dias, Desmamado → creche, com um leitão morto
---   E 150 dias, Vendido   → ciclo completo com venda (receita)
+--   D  45 dias, Desmamado → creche, um leitão morto e 3 vendidos um por um
+--   E 150 dias, Vendido   → lote inteiro vendido junto (cada leitão com seu valor)
+-- Faturamento: vendas de leitões (lotes D e E) e descarte (matriz M-009 vendida)
 --
 -- Todos os registros têm "origem": "exemplo" (removíveis em Configurações).
 -- Pode ser executado de novo: apaga a demonstração anterior (inclusive a de 10 mil).
@@ -81,6 +82,8 @@ declare
   ld text := gen_random_uuid()::text; le text := gen_random_uuid()::text;
   leitoes jsonb;
   k int;
+  lt jsonb;
+  venda_e text := gen_random_uuid()::text;
   fatores numeric[];
   nascs numeric[] := array[1.52, 1.38, 1.45, 1.61, 1.29, 1.47, 1.33, 1.56, 1.41, 1.36, 1.18, 1.25];
 begin
@@ -94,14 +97,14 @@ begin
 
   -- ---------------------------------------------------------------- REPRODUTORES
   insert into public.reprodutores (user_id, id, identificador, dados) values
-  (dono, r1, 'R-01', jsonb_build_object('id', r1, 'identificador', 'R-01', 'raca', 'Duroc', 'status', 'Ativo',
+  (dono, r1, 'R-01', jsonb_build_object('id', r1, 'identificador', 'R-01', 'raca', 'Duroc', 'status', 'Ativo', 'procedencia', 'Comprada', 'precoAquisicao', 4200,
      'dataNascimento', pg_temp.d(h - 900), 'dataEntrada', pg_temp.d(h - 650), 'createdAt', h - 650, 'origem', 'exemplo')),
-  (dono, r2, 'R-02', jsonb_build_object('id', r2, 'identificador', 'R-02', 'raca', 'Pietrain', 'status', 'Ativo',
+  (dono, r2, 'R-02', jsonb_build_object('id', r2, 'identificador', 'R-02', 'raca', 'Pietrain', 'status', 'Ativo', 'procedencia', 'Comprada', 'precoAquisicao', 3800,
      'dataNascimento', pg_temp.d(h - 800), 'dataEntrada', pg_temp.d(h - 560), 'createdAt', h - 560, 'origem', 'exemplo')),
-  (dono, r3, 'R-03', jsonb_build_object('id', r3, 'identificador', 'R-03', 'raca', 'Large White', 'status', 'Inativo',
+  (dono, r3, 'R-03', jsonb_build_object('id', r3, 'identificador', 'R-03', 'raca', 'Large White', 'status', 'Inativo', 'procedencia', 'Nascida na granja', 'precoAquisicao', 0,
      'observacoes', 'Em descanso (problema de casco).',
      'dataNascimento', pg_temp.d(h - 1100), 'dataEntrada', pg_temp.d(h - 850), 'createdAt', h - 850, 'origem', 'exemplo')),
-  (dono, r4, 'R-04', jsonb_build_object('id', r4, 'identificador', 'R-04', 'raca', 'Landrace', 'status', 'Descartado',
+  (dono, r4, 'R-04', jsonb_build_object('id', r4, 'identificador', 'R-04', 'raca', 'Landrace', 'status', 'Descartado', 'procedencia', 'Comprada', 'precoAquisicao', 3500,
      'observacoes', 'Descartado por idade.',
      'dataNascimento', pg_temp.d(h - 1600), 'dataEntrada', pg_temp.d(h - 1350), 'createdAt', h - 1350, 'origem', 'exemplo'));
 
@@ -111,6 +114,7 @@ begin
     'id', x.id, 'identificador', x.ident, 'raca', x.raca,
     'dataNascimento', pg_temp.d(x.entrada - 210), 'dataEntrada', pg_temp.d(x.entrada),
     'precoAquisicao', x.preco, 'status', x.status, 'statusReprodutivo', x.rep,
+    'procedencia', case when x.preco > 0 then 'Comprada' else 'Nascida na granja' end,
     'observacoes', x.obs, 'createdAt', x.entrada, 'origem', 'exemplo', 'ciclos', x.ciclos)
   from (values
     (m1, 'M-001', 'F1 (LW x LD)', h - 420, 1900, 'Ativa', 'Gestante', null::text, jsonb_build_array(
@@ -137,16 +141,21 @@ begin
       jsonb_build_object('id', gen_random_uuid()::text, 'dataCobertura', pg_temp.d(h - 139), 'tipoCobertura', 'Monta natural',
         'reprodutor', 'R-03', 'reprodutorId', r3, 'dataPrevistaParto', pg_temp.d(h - 25), 'dataParto', pg_temp.d(h - 25),
         'loteId', lc, 'status', 'Parida'))),
-    (m7, 'M-007', 'Landrace', h - 400, 1800, 'Ativa', 'Desmamada', null, jsonb_build_array(
+    (m7, 'M-007', 'Landrace', h - 400, 0, 'Ativa', 'Desmamada', null, jsonb_build_array(
       jsonb_build_object('id', gen_random_uuid()::text, 'dataCobertura', pg_temp.d(h - 159), 'tipoCobertura', 'Inseminação artificial',
         'reprodutor', 'R-01', 'reprodutorId', r1, 'dataPrevistaParto', pg_temp.d(h - 45), 'dataParto', pg_temp.d(h - 45),
         'dataDesmame', pg_temp.d(h - 21), 'loteId', ld, 'status', 'Desmamada'))),
-    (m8, 'M-008', 'F1 (LW x LD)', h - 300, 1750, 'Ativa', 'Vazia', 'Repetiu cio após a cobertura; observar.', jsonb_build_array(
+    (m8, 'M-008', 'F1 (LW x LD)', h - 300, 0, 'Ativa', 'Vazia', 'Repetiu cio após a cobertura; observar.', jsonb_build_array(
       jsonb_build_object('id', gen_random_uuid()::text, 'dataCobertura', pg_temp.d(h - 60), 'tipoCobertura', 'Inseminação artificial',
         'reprodutor', 'R-02', 'reprodutorId', r2, 'dataPrevistaParto', pg_temp.d(h + 54), 'status', 'Falhou'))),
     (m9, 'M-009', 'Landrace', h - 1500, 1600, 'Descartada', 'Vazia', 'Descartada por baixa produtividade.', '[]'::jsonb),
     (m10, 'M-010', 'Large White', h - 500, 1900, 'Inativa', 'Vazia', 'Em recuperação (problema de casco).', '[]'::jsonb)
   ) as x(id, ident, raca, entrada, preco, status, rep, obs, ciclos);
+
+  -- M-009 foi vendida para descarte (aparece no Faturamento, aba Descarte)
+  update public.matrizes set dados = dados || jsonb_build_object('venda', jsonb_build_object(
+    'vendaId', gen_random_uuid()::text, 'data', pg_temp.d(h - 40), 'valor', 1350, 'pesoKg', 235, 'comprador', 'Frigorífico Boa Vista'))
+  where user_id = dono and id = m9;
 
   -- ---------------------------------------------------------------- LOTE A (14 dias, 12 leitões)
   -- fatores de crescimento: o 11º cresce bem menos (alerta de baixo ganho); o 12º morreu no 3º dia
@@ -224,10 +233,20 @@ begin
   fatores := array[1.00, 1.03, 0.97, 1.01, 0.99, 1.04, 0.98, 1.02, 1.00];
   leitoes := '[]'::jsonb;
   for k in 1..9 loop
-    leitoes := leitoes || pg_temp.leitao(ld, 'M-007-P1', k, h - 45, nascs[k], 0.245 * fatores[k], array[7, 14, 21, 28, 35, 42], 'Ativo',
+    lt := pg_temp.leitao(ld, 'M-007-P1', k, h - 45, nascs[k], 0.245 * fatores[k], array[7, 14, 21, 28, 35, 42], 'Ativo',
       'Saudável', case when k = 9 then 10 end, case when k % 3 = 0 then 'Fêmea' else 'Macho' end,
       case k when 9 then jsonb_build_object('tipo', 'tratamento', 'descricao', 'Esmagamento pela matriz', 'data', pg_temp.d(h - 36),
                      'medicamento', 'Anti-inflamatório', 'dose', '0,5 mL', 'custo', 8) end);
+    -- os 3 primeiros foram vendidos UM POR UM (datas, compradores e preços diferentes)
+    if k <= 3 then
+      lt := lt || jsonb_build_object('status', 'Vendido', 'venda', jsonb_build_object(
+        'vendaId', gen_random_uuid()::text,
+        'data', pg_temp.d(h - (array[6, 4, 1])[k]),
+        'valor', round((lt ->> 'pesoAtual')::numeric * (array[16.5, 17.0, 16.0])[k], 2),
+        'pesoKg', (lt ->> 'pesoAtual')::numeric,
+        'comprador', (array['Sr. Antônio (vizinho)', 'Chácara Primavera', 'Sr. Antônio (vizinho)'])[k]));
+    end if;
+    leitoes := leitoes || lt;
   end loop;
   insert into public.lotes (user_id, id, nome, matriz_id, dados) values (dono, ld, 'M-007-P1', m7, jsonb_build_object(
     'id', ld, 'nome', 'M-007-P1', 'matrizId', m7, 'dataParto', pg_temp.d(h - 45), 'dataDesmame', pg_temp.d(h - 21),
@@ -247,8 +266,15 @@ begin
   fatores := array[1.00, 1.02, 0.98, 1.03, 0.99, 1.01, 0.97, 1.00];
   leitoes := '[]'::jsonb;
   for k in 1..8 loop
-    leitoes := leitoes || pg_temp.leitao(le, 'M-001-P1', k, h - 150, nascs[k], 0.25 * fatores[k], array[7, 21, 42, 63], 'Vendido',
+    lt := pg_temp.leitao(le, 'M-001-P1', k, h - 150, nascs[k], 0.25 * fatores[k], array[7, 21, 42, 63], 'Vendido',
       'Saudável', null, case when k % 2 = 0 then 'Fêmea' else 'Macho' end, null);
+    -- lote inteiro vendido junto (mesma venda), cada leitão com o seu valor por kg
+    lt := lt || jsonb_build_object('venda', jsonb_build_object(
+      'vendaId', venda_e, 'data', pg_temp.d(h - 87),
+      'valor', round((lt ->> 'pesoAtual')::numeric * 15.2, 2),
+      'pesoKg', (lt ->> 'pesoAtual')::numeric,
+      'comprador', 'Frigorífico São José'));
+    leitoes := leitoes || lt;
   end loop;
   insert into public.lotes (user_id, id, nome, matriz_id, dados) values (dono, le, 'M-001-P1', m1, jsonb_build_object(
     'id', le, 'nome', 'M-001-P1', 'matrizId', m1, 'dataParto', pg_temp.d(h - 150), 'dataDesmame', pg_temp.d(h - 126),
@@ -262,8 +288,7 @@ begin
       jsonb_build_object('id', gen_random_uuid()::text, 'tipo', 'custo', 'categoria', 'Vacinas', 'descricao', 'Protocolo vacinal', 'valor', 36.8, 'data', pg_temp.d(h - 129)),
       jsonb_build_object('id', gen_random_uuid()::text, 'tipo', 'custo', 'categoria', 'Ração', 'descricao', 'Ração pré-inicial (maternidade)', 'valor', 136, 'data', pg_temp.d(h - 126)),
       jsonb_build_object('id', gen_random_uuid()::text, 'tipo', 'custo', 'categoria', 'Mão de obra', 'descricao', 'Manejo da maternidade', 'valor', 140, 'data', pg_temp.d(h - 126)),
-      jsonb_build_object('id', gen_random_uuid()::text, 'tipo', 'custo', 'categoria', 'Ração', 'descricao', 'Ração de creche', 'valor', 464, 'data', pg_temp.d(h - 87)),
-      jsonb_build_object('id', gen_random_uuid()::text, 'tipo', 'receita', 'categoria', 'Venda de leitões', 'descricao', '8 leitões vendidos (~23 kg)', 'valor', 2795, 'data', pg_temp.d(h - 87)))));
+      jsonb_build_object('id', gen_random_uuid()::text, 'tipo', 'custo', 'categoria', 'Ração', 'descricao', 'Ração de creche', 'valor', 464, 'data', pg_temp.d(h - 87)))));
 end $$;
 
 -- Resumo do que ficou salvo na conta

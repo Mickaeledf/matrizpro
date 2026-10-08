@@ -7,11 +7,27 @@ export interface Matriz {
   statusReprodutivo: StatusReprodutivo;
   status: StatusMatriz;
   raca?: string;
+  procedencia?: Procedencia;
+  venda?: Venda;
   ciclos: CicloReprodutivo[];
   observacoes?: string;
   createdAt: string;
   /** 'exemplo' = registro criado pela base de demonstração */
   origem?: 'exemplo';
+}
+
+/** De onde veio o animal: comprado (tem preço de compra) ou nascido na própria granja */
+export type Procedencia = 'Comprada' | 'Nascida na granja';
+
+/** Registro de venda de um animal (leitão, matriz ou reprodutor de descarte) */
+export interface Venda {
+  /** Agrupa os animais vendidos juntos na mesma operação */
+  vendaId: string;
+  data: string;
+  /** Valor recebido por este animal (R$) */
+  valor: number;
+  pesoKg?: number;
+  comprador?: string;
 }
 
 export type StatusReprodutivo = 'Vazia' | 'Gestante' | 'Lactante' | 'Desmamada';
@@ -61,6 +77,9 @@ export interface Reprodutor {
   dataNascimento: string;
   dataEntrada: string;
   status: StatusReprodutor;
+  procedencia?: Procedencia;
+  precoAquisicao?: number;
+  venda?: Venda;
   observacoes?: string;
   createdAt: string;
   origem?: 'exemplo';
@@ -90,6 +109,7 @@ export interface Leitao {
   dataNascimento: string;
   pesagens: Pesagem[];
   registrosSaude: RegistroSaude[];
+  venda?: Venda;
 }
 
 export type StatusSaude = 'Saudável' | 'Em observação' | 'Em tratamento' | 'Crítico';

@@ -1,10 +1,12 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, GitBranch, Layers, BarChart3, FileText, Settings, LogOut, Cloud, CloudOff, Loader2, Dna, LifeBuoy, Users } from "lucide-react";
+import { LayoutDashboard, GitBranch, Layers, BarChart3, FileText, Settings, LogOut, Cloud, CloudOff, Loader2, Dna, LifeBuoy, Mail, Users, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/store/useStore";
 import { useAuth } from "@/contexts/auth";
 import { useStatusSincronizacao } from "@/lib/sincronizacao";
 import { useAssinatura } from "@/lib/assinatura";
+import { contarNaoLidas, useMensagens } from "@/lib/mensagens";
+import { Logo } from "@/components/Logo";
 
 const rotuloStatus = {
   carregando: "Carregando…",
@@ -18,6 +20,7 @@ const navItems = [
   { to: "/matrizes", label: "Matrizes", icon: GitBranch },
   { to: "/reprodutores", label: "Reprodutores", icon: Dna },
   { to: "/lotes", label: "Lotes", icon: Layers },
+  { to: "/faturamento", label: "Faturamento", icon: Wallet },
   { to: "/analise", label: "Análise", icon: BarChart3 },
   { to: "/relatorios", label: "Relatórios", icon: FileText },
 ];
@@ -32,6 +35,7 @@ export function AppSidebar({ onNavigate, className }: { onNavigate?: () => void;
   const { status, erro } = useStatusSincronizacao();
   const IconeStatus = status === "erro" ? CloudOff : status === "sincronizado" ? Cloud : Loader2;
   const admin = useAssinatura((s) => s.admin);
+  const naoLidas = useMensagens((s) => contarNaoLidas(s.mensagens, user?.id));
 
   const linkClass = (ativo: boolean) =>
     cn(
@@ -45,7 +49,7 @@ export function AppSidebar({ onNavigate, className }: { onNavigate?: () => void;
     <aside className={cn("sidebar-gradient flex h-full w-60 flex-col text-sidebar-custom-fg", className)}>
       <div className="px-5 py-6">
         <div className="flex items-center gap-2">
-          <GitBranch className="h-7 w-7" />
+          <Logo className="h-11 w-11" />
           <span className="text-xl font-bold tracking-tight">MatrizPro</span>
         </div>
         {nomeFazenda && <p className="mt-1 truncate text-xs text-sidebar-custom-fg/70">{nomeFazenda}</p>}
@@ -66,6 +70,18 @@ export function AppSidebar({ onNavigate, className }: { onNavigate?: () => void;
       </nav>
 
       <div className="space-y-1 border-t border-sidebar-custom-hover px-3 py-4">
+        <NavLink to="/mensagens" onClick={onNavigate} className={linkClass(estaAtivo(location.pathname, "/mensagens"))}>
+          <Mail className="h-4 w-4" />
+          Mensagens
+          {naoLidas > 0 && (
+            <span
+              className="ml-auto rounded-full bg-warning px-1.5 text-xs font-semibold text-warning-foreground"
+              aria-label={`${naoLidas} mensagem(ns) não lida(s)`}
+            >
+              {naoLidas}
+            </span>
+          )}
+        </NavLink>
         <NavLink to="/suporte" onClick={onNavigate} className={linkClass(estaAtivo(location.pathname, "/suporte"))}>
           <LifeBuoy className="h-4 w-4" />
           Suporte

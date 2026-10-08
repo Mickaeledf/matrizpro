@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Ban, CalendarPlus, CheckCircle2, Loader2, RefreshCw, Search, Unlock } from "lucide-react";
+import { Ban, CalendarPlus, CheckCircle2, Loader2, Mail, RefreshCw, Search, Unlock } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { calcularSituacao, Plano, SituacaoAssinatura, useAssinatura } from "@/lib/assinatura";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useConfirm } from "@/components/ConfirmDialog";
-import { NEGOCIO, valorMensalidadeTexto } from "@/config/negocio";
+import { NEGOCIO, PLANOS, PlanoPago, moeda } from "@/config/negocio";
 import { cn } from "@/lib/utils";
 
 interface Assinante {
@@ -36,12 +36,12 @@ function descreverSituacao(s: SituacaoAssinatura): { texto: string; cor: string 
       return { texto: "Vitalício", cor: "bg-primary/10 text-primary" };
     case "teste":
       return { texto: `Teste (${s.diasRestantes} d)`, cor: "bg-info/10 text-info" };
-    case "mensal":
-      return { texto: `Pago (${s.diasRestantes} d)`, cor: "bg-success/10 text-success" };
+    case "pago":
+      return { texto: `${PLANOS[s.plano].nome} (${s.diasRestantes} d)`, cor: s.diasRestantes <= NEGOCIO.diasAvisoRenovacao ? "bg-warning/15 text-warning" : "bg-success/10 text-success" };
     case "bloqueada":
       return { texto: "Bloqueado", cor: "bg-destructive/10 text-destructive" };
     case "expirada":
-      return { texto: s.motivo === "teste" ? "Teste vencido" : "Mensalidade vencida", cor: "bg-warning/15 text-warning" };
+      return { texto: s.motivo === "teste" ? "Teste vencido" : "Assinatura vencida", cor: "bg-warning/15 text-warning" };
     default:
       return { texto: "—", cor: "bg-muted text-muted-foreground" };
   }
@@ -49,6 +49,7 @@ function descreverSituacao(s: SituacaoAssinatura): { texto: string; cor: string 
 
 export default function AssinantesPage() {
   const admin = useAssinatura((s) => s.admin);
+  const navigate = useNavigate();
   const verificando = useAssinatura((s) => s.situacao.tipo === "carregando");
   const { confirmar, dialog } = useConfirm();
   const [lista, setLista] = useState<Assinante[]>([]);
@@ -85,13 +86,18 @@ export default function AssinantesPage() {
     const s = lista.map((a) =>
       calcularSituacao(a.plano ? { plano: a.plano, teste_ate: a.teste_ate ?? "", pago_ate: a.pago_ate, admin: a.admin } : null)
     );
-    const pagantes = s.filter((x) => x.tipo === "mensal").length;
+    const pagos = s.filter((x): x is Extract<typeof x, { tipo: "pago" }> => x.tipo === "pago");
+    const pagantes = pagos.length;
+    // receita mensal equivalente: semestral dividido por 6
+    const receita = pagos.reduce((a, x) => a + (x.plano === "mensal" ? PLANOS.mensal.valor : PLANOS.semestral.valor / 6), 0);
+    const vencendo = pagos.filter((x) => x.diasRestantes <= NEGOCIO.diasAvisoRenovacao).length;
     return {
       total: lista.length,
       teste: s.filter((x) => x.tipo === "teste").length,
       pagantes,
       vencidos: s.filter((x) => x.tipo === "expirada").length,
-      receita: NEGOCIO.valorMensalidade !== null ? pagantes * NEGOCIO.valorMensalidade : null,
+      receita,
+      vencendo,
     };
   }, [lista]);
 
@@ -105,9 +111,9 @@ export default function AssinantesPage() {
     );
   }
 
-  const executar = async (alvo: Assinante, acao: Acao, dias = 30) => {
-    setExecutando(alvo.user_id + acao);
-    const { error } = await supabase.rpc("admin_alterar_assinatura", { alvo: alvo.user_id, acao, dias });
+  const executar = async (alvo: Assinante, acao: Acao, dias = 30, plano: PlanoPago = "mensal") => {
+    setExecutando(alvo.user_id + acao + plano);
+    const { error } = await supabase.rpc("admin_alterar_assinatura", { alvo: alvo.user_id, acao, dias, plano });
     setExecutando(null);
     if (error) return toast.error(error.message);
     toast.success("Assinatura atualizada.");
@@ -118,14 +124,9 @@ export default function AssinantesPage() {
     { label: "Cadastros", valor: resumo.total },
     { label: "Em teste grátis", valor: resumo.teste },
     { label: "Pagantes", valor: resumo.pagantes },
+    { label: "Vencendo em 10 dias", valor: resumo.vencendo },
     { label: "Vencidos", valor: resumo.vencidos },
-    {
-      label: "Receita mensal estimada",
-      valor:
-        resumo.receita !== null
-          ? resumo.receita.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-          : "Defina o valor",
-    },
+    { label: "Receita mensal estimada", valor: moeda(resumo.receita) },
   ];
 
   return (
@@ -134,7 +135,7 @@ export default function AssinantesPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Assinantes</h1>
           <p className="text-sm text-muted-foreground">
-            Área da administradora. Mensalidade: {valorMensalidadeTexto()} · teste grátis de {NEGOCIO.diasTeste} dias.
+            Área da administradora. Mensal {moeda(PLANOS.mensal.valor)} · semestral {moeda(PLANOS.semestral.valor)} · teste grátis de {NEGOCIO.diasTeste} dias.
           </p>
         </div>
         <Button variant="outline" className="gap-2" onClick={carregar} disabled={carregando}>
@@ -142,7 +143,7 @@ export default function AssinantesPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
         {kpis.map((k) => (
           <Card key={k.label} className="border border-border">
             <CardContent className="p-4">
@@ -180,7 +181,7 @@ export default function AssinantesPage() {
               <TableBody>
                 {linhas.map((a) => {
                   const d = descreverSituacao(a.situacao);
-                  const ocupado = (acao: Acao) => executando === a.user_id + acao;
+                  const ocupado = (acao: Acao, plano: PlanoPago = "mensal") => executando === a.user_id + acao + plano;
                   return (
                     <TableRow key={a.user_id}>
                       <TableCell className="font-medium">
@@ -203,22 +204,34 @@ export default function AssinantesPage() {
                           <span className="text-xs text-muted-foreground">Administradora</span>
                         ) : (
                           <div className="flex flex-wrap justify-end gap-1">
+                            {(Object.keys(PLANOS) as PlanoPago[]).map((p) => (
+                              <Button
+                                key={p}
+                                size="sm"
+                                variant="outline"
+                                className="gap-1"
+                                disabled={!!executando}
+                                onClick={() =>
+                                  confirmar({
+                                    titulo: `Registrar pagamento ${PLANOS[p].nome.toLowerCase()} de ${a.email}?`,
+                                    descricao: `${moeda(PLANOS[p].valor)} · libera ${PLANOS[p].dias} dias de acesso (somados ao período já pago, se houver).`,
+                                    confirmar: "Registrar pagamento",
+                                    onConfirm: () => executar(a, "pagamento", PLANOS[p].dias, p),
+                                  })
+                                }
+                              >
+                                {ocupado("pagamento", p) ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                                Pagou {PLANOS[p].nome.toLowerCase()}
+                              </Button>
+                            ))}
                             <Button
                               size="sm"
-                              variant="outline"
+                              variant="ghost"
                               className="gap-1"
-                              disabled={!!executando}
-                              onClick={() =>
-                                confirmar({
-                                  titulo: `Registrar pagamento de ${a.email}?`,
-                                  descricao: "Libera 30 dias de acesso (somados ao período já pago, se houver).",
-                                  confirmar: "Registrar pagamento",
-                                  onConfirm: () => executar(a, "pagamento", 30),
-                                })
-                              }
+                              onClick={() => navigate(`/mensagens?para=${a.user_id}`)}
+                              title="Enviar mensagem para esta pessoa"
                             >
-                              {ocupado("pagamento") ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                              +30 dias pagos
+                              <Mail className="h-4 w-4" /> Mensagem
                             </Button>
                             <Button
                               size="sm"

@@ -1,6 +1,6 @@
 import { FormEvent, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
-import { AlertCircle, Check, Eye, EyeOff, GitBranch, Loader2, MailCheck, X } from "lucide-react";
+import { AlertCircle, Check, Eye, EyeOff, Loader2, MailCheck, X } from "lucide-react";
 import { useAuth } from "@/contexts/auth";
 import { supabaseConfigurado } from "@/lib/supabase";
 import { REGRAS_SENHA, validarEmail, validarSenha } from "@/lib/authValidacao";
@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { Logo } from "@/components/Logo";
 
 type Modo = "entrar" | "cadastrar";
 type Erros = Partial<Record<"email" | "senha" | "confirmacao", string>>;
@@ -151,10 +152,11 @@ export default function LoginPage() {
       {/* Painel lateral com a marca (só em telas grandes) */}
       <aside className="sidebar-gradient hidden w-[42%] flex-col justify-between p-10 text-sidebar-custom-fg lg:flex">
         <div className="flex items-center gap-2">
-          <GitBranch className="h-8 w-8" />
+          <Logo className="h-14 w-14" />
           <span className="text-2xl font-bold tracking-tight">MatrizPro</span>
         </div>
         <div>
+          <Logo className="mb-8 h-48 w-48 opacity-90" />
           <h2 className="text-3xl font-bold leading-tight">Gestão de matrizes e leitões, do parto à venda.</h2>
           <p className="mt-4 text-sidebar-custom-fg/80">
             Ciclo reprodutivo, pesagens, saúde, vacinas e custos em um só lugar, com alertas automáticos.
@@ -166,7 +168,7 @@ export default function LoginPage() {
       <main className="flex flex-1 items-center justify-center p-4 sm:p-8">
         <div className="w-full max-w-md">
           <div className="mb-8 flex items-center justify-center gap-2 text-primary lg:hidden">
-            <GitBranch className="h-7 w-7" />
+            <Logo variante="verde" className="h-12 w-12" />
             <span className="text-2xl font-bold">MatrizPro</span>
           </div>
 
