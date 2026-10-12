@@ -105,5 +105,6 @@ export default {
       },
     },
   },
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- o Tailwind 3 carrega este arquivo como CommonJS
   plugins: [require("tailwindcss-animate")],
 } satisfies Config;

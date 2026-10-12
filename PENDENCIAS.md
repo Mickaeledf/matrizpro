@@ -43,6 +43,7 @@ Quase tudo se altera num único arquivo: **`src/config/negocio.ts`**.
 - [ ] **SMTP próprio para os emails de confirmação.** O serviço gratuito do Supabase **só entrega para membros da equipe do projeto** e envia poucos emails por hora → clientes reais **não vão receber** o email de confirmação até isso ser configurado.
   Opções: Resend, Brevo, Amazon SES, Gmail (Workspace). Configurar em Supabase → Authentication → Emails → SMTP Settings.
 - [ ] **Remetente e texto dos emails** (nome "MatrizPro", logo, português) em Supabase → Authentication → Emails → Templates.
+- [ ] **Email "Redefinir senha" em português:** o botão "Esqueci minha senha" já funciona, mas o email chega com o texto padrão em inglês do Supabase. Traduzir em Authentication → Emails → Templates → *Reset Password*. Ao publicar o site, o endereço novo precisa estar em **Redirect URLs** (senão o link de nova senha não abre).
 - [ ] **Domínio / endereço do site** (ex.: app.matrizpro.com.br) e **onde publicar** (Vercel, Netlify, Lovable).
   Depois de publicar, adicionar o endereço em Supabase → Authentication → URL Configuration (Site URL e Redirect URLs).
 

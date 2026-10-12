@@ -8,6 +8,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { RotaProtegida } from "@/components/RotaProtegida";
 import { AuthProvider } from "@/contexts/AuthProvider";
 import LoginPage from "@/pages/LoginPage";
+import RedefinirSenhaPage from "@/pages/RedefinirSenhaPage";
 import NotFound from "@/pages/NotFound";
 
 // Páginas carregadas sob demanda para reduzir o bundle inicial
@@ -36,6 +37,7 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/redefinir-senha" element={<RedefinirSenhaPage />} />
             {/* Todas as telas do sistema exigem login */}
             <Route
               element={

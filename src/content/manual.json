@@ -8,7 +8,9 @@
         "Na tela inicial, clique em \"Criar conta\", informe seu email e uma senha com pelo menos 8 caracteres, contendo letras e números.",
         "Abra o email de confirmação enviado pelo MatrizPro e clique no link. Sem essa confirmação não é possível entrar.",
         "Todo novo cadastro tem 10 dias de teste grátis com acesso completo. Depois é preciso assinar: plano mensal (R$ 97,90) ou semestral (6 meses pelo preço de 5 — 1 mês grátis).",
-        "Seus dados ficam salvos na nuvem e aparecem em qualquer computador ou celular ao entrar com sua conta. Na barra lateral, \"Salvo na nuvem\" indica que tudo foi gravado."
+        "Seus dados ficam salvos na nuvem e aparecem em qualquer computador ou celular ao entrar com sua conta. Na barra lateral, \"Salvo na nuvem\" indica que tudo foi gravado.",
+        "Esqueceu a senha? Na tela de login, clique em \"Esqueci minha senha\", informe seu email e abra o link que chegar. Ele leva a uma tela para criar a nova senha (o link vale uma vez só e expira; se precisar, peça outro).",
+        "Para trocar a senha estando conectado, vá em Configurações → Alterar senha."
       ]
     },
     {
@@ -110,6 +112,10 @@
     {
       "pergunta": "Posso responder uma mensagem?",
       "resposta": "Não. A caixa de Mensagens é só para avisos da equipe. Para falar com a gente, use o WhatsApp na aba Suporte."
+    },
+    {
+      "pergunta": "Esqueci minha senha. E agora?",
+      "resposta": "Na tela de login, clique em \"Esqueci minha senha\" e informe seu email. Você recebe um link para criar uma nova senha. Não chegou? Veja a caixa de spam ou fale com o suporte, que pode reenviar o link."
     }
   ]
 }

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Ban, CalendarPlus, CheckCircle2, Loader2, Mail, RefreshCw, Search, Unlock } from "lucide-react";
+import { Ban, CalendarPlus, CheckCircle2, KeyRound, Loader2, Mail, RefreshCw, Search, Unlock } from "lucide-react";
+import { useAuth } from "@/contexts/auth";
 import { supabase } from "@/lib/supabase";
 import { calcularSituacao, Plano, SituacaoAssinatura, useAssinatura } from "@/lib/assinatura";
 import { Card, CardContent } from "@/components/ui/card";
@@ -50,6 +51,7 @@ function descreverSituacao(s: SituacaoAssinatura): { texto: string; cor: string 
 export default function AssinantesPage() {
   const admin = useAssinatura((s) => s.admin);
   const navigate = useNavigate();
+  const { enviarLinkRedefinicao } = useAuth();
   const verificando = useAssinatura((s) => s.situacao.tipo === "carregando");
   const { confirmar, dialog } = useConfirm();
   const [lista, setLista] = useState<Assinante[]>([]);
@@ -232,6 +234,26 @@ export default function AssinantesPage() {
                               title="Enviar mensagem para esta pessoa"
                             >
                               <Mail className="h-4 w-4" /> Mensagem
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="gap-1"
+                              title="Enviar para o email da pessoa um link para criar uma nova senha"
+                              onClick={() =>
+                                confirmar({
+                                  titulo: `Enviar link de nova senha para ${a.email}?`,
+                                  descricao: "A pessoa recebe um email com um link para criar uma nova senha. A senha atual continua valendo até ela trocar.",
+                                  confirmar: "Enviar link",
+                                  onConfirm: async () => {
+                                    const erro = await enviarLinkRedefinicao(a.email);
+                                    if (erro) toast.error(erro);
+                                    else toast.success(`Link enviado para ${a.email}.`);
+                                  },
+                                })
+                              }
+                            >
+                              <KeyRound className="h-4 w-4" /> Senha
                             </Button>
                             <Button
                               size="sm"

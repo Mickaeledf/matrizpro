@@ -42,6 +42,12 @@ export function traduzirErroAuth(erro: AuthError | Error | null | undefined): st
   if (codigo === "user_already_exists" || codigo === "email_exists" || mensagem.includes("already registered")) {
     return "Este email já está cadastrado. Faça login ou use outro email.";
   }
+  if (codigo === "same_password") {
+    return "A nova senha precisa ser diferente da senha atual.";
+  }
+  if (codigo === "session_not_found" || codigo === "session_expired" || mensagem.includes("auth session missing")) {
+    return "O link expirou ou já foi usado. Peça um novo link de redefinição de senha.";
+  }
   if (codigo === "weak_password") {
     return "Senha fraca. Use pelo menos 8 caracteres com letras e números.";
   }

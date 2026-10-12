@@ -12,6 +12,12 @@ export interface AuthContextValue {
   /** Retorna erro, ou indica se é preciso confirmar o email. */
   cadastrar: (email: string, senha: string) => Promise<{ erro: string | null; precisaConfirmar: boolean }>;
   reenviarConfirmacao: (email: string) => Promise<string | null>;
+  /** Envia o email com o link para criar uma nova senha ("Esqueci minha senha"). */
+  enviarLinkRedefinicao: (email: string) => Promise<string | null>;
+  /** Grava a nova senha do usuário logado (ou que chegou pelo link de redefinição). */
+  definirNovaSenha: (senha: string) => Promise<string | null>;
+  /** true quando o usuário chegou pelo link de redefinição de senha do email. */
+  emRecuperacao: boolean;
   sair: () => Promise<void>;
 }
 

@@ -10,10 +10,13 @@ import { AuthContext, AuthContextValue } from "./auth";
 
 /** Para onde o link de confirmação do email leva o usuário de volta. */
 const urlRetornoConfirmacao = () => `${window.location.origin}/`;
+/** Página onde o usuário cria a nova senha depois de clicar no link do email. */
+const urlRedefinirSenha = () => `${window.location.origin}/redefinir-senha`;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [carregando, setCarregando] = useState(true);
+  const [emRecuperacao, setEmRecuperacao] = useState(false);
 
   useEffect(() => {
     if (!supabaseConfigurado) {
@@ -29,7 +32,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // 2) Mantém o estado sincronizado: login, logout, renovação de token,
     //    retorno pelo link de confirmação e alterações feitas em outras abas.
-    const { data } = supabase.auth.onAuthStateChange((_evento, novaSessao) => {
+    const { data } = supabase.auth.onAuthStateChange((evento, novaSessao) => {
+      // Chegou pelo link "redefinir senha" do email: mostra a tela de nova senha
+      if (evento === "PASSWORD_RECOVERY") {
+        setEmRecuperacao(true);
+        if (window.location.pathname !== "/redefinir-senha") window.location.replace("/redefinir-senha");
+      }
       setSession(novaSessao);
       setCarregando(false);
     });
@@ -80,6 +88,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return error ? traduzirErroAuth(error) : null;
   }, []);
 
+  const enviarLinkRedefinicao = useCallback(async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: urlRedefinirSenha() });
+    return error ? traduzirErroAuth(error) : null;
+  }, []);
+
+  const definirNovaSenha = useCallback(async (senha: string) => {
+    const { error } = await supabase.auth.updateUser({ password: senha });
+    if (!error) setEmRecuperacao(false);
+    return error ? traduzirErroAuth(error) : null;
+  }, []);
+
   const sair = useCallback(async () => {
     // 1) Grava na nuvem o que ainda estiver pendente e para a sincronização
     await encerrarSincronizacao();
@@ -93,8 +112,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const valor = useMemo<AuthContextValue>(
-    () => ({ session, user: session?.user ?? null, carregando, entrar, cadastrar, reenviarConfirmacao, sair }),
-    [session, carregando, entrar, cadastrar, reenviarConfirmacao, sair]
+    () => ({
+      session,
+      user: session?.user ?? null,
+      carregando,
+      entrar,
+      cadastrar,
+      reenviarConfirmacao,
+      enviarLinkRedefinicao,
+      definirNovaSenha,
+      emRecuperacao,
+      sair,
+    }),
+    [session, carregando, entrar, cadastrar, reenviarConfirmacao, enviarLinkRedefinicao, definirNovaSenha, emRecuperacao, sair]
   );
 
   return <AuthContext.Provider value={valor}>{children}</AuthContext.Provider>;

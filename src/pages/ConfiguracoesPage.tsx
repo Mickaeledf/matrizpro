@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Database, Download, FlaskConical, Settings, SlidersHorizontal, Trash2, Upload } from "lucide-react";
+import { Database, Download, FlaskConical, KeyRound, Settings, SlidersHorizontal, Trash2, Upload } from "lucide-react";
+import { useAuth } from "@/contexts/auth";
+import { FormNovaSenha } from "@/components/FormNovaSenha";
 import { CONFIG_PADRAO, normalizarDados, useStore } from "@/store/useStore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,6 +43,7 @@ const camposParametros: { campo: CamposParametros; label: string; ajuda: string 
 export default function ConfiguracoesPage() {
   const { configuracoes, updateConfiguracoes, importarDados, resetarDados, removerDadosExemplo, matrizes, reprodutores, lotes } =
     useStore();
+  const { user, definirNovaSenha } = useAuth();
   const exemplos = {
     matrizes: matrizes.filter((m) => m.origem === "exemplo").length,
     reprodutores: reprodutores.filter((r) => r.origem === "exemplo").length,
@@ -225,6 +228,26 @@ export default function ConfiguracoesPage() {
           </div>
         </CardContent>
       </Card>
+      <Card className="max-w-3xl border border-border">
+        <CardContent className="space-y-4 p-4 sm:p-6">
+          <div className="flex items-center gap-3">
+            <KeyRound className="h-5 w-5 text-muted-foreground" />
+            <h2 className="text-lg font-bold text-foreground">Alterar senha</h2>
+          </div>
+          <p className="text-sm text-muted-foreground">Conta: {user?.email}</p>
+          <div className="max-w-sm">
+            <FormNovaSenha
+              rotuloBotao="Alterar senha"
+              onSalvar={async (senha) => {
+                const erro = await definirNovaSenha(senha);
+                if (!erro) toast.success("Senha alterada com sucesso.");
+                return erro;
+              }}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       {temExemplos && (
         <Card className="max-w-3xl border border-border">
           <CardContent className="space-y-4 p-4 sm:p-6">

@@ -61,7 +61,7 @@ function CampoSenha({
 }
 
 export default function LoginPage() {
-  const { session, carregando, entrar, cadastrar, reenviarConfirmacao } = useAuth();
+  const { session, carregando, entrar, cadastrar, reenviarConfirmacao, enviarLinkRedefinicao } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const destino = (location.state as { de?: string } | null)?.de || "/";
@@ -77,18 +77,36 @@ export default function LoginPage() {
   const [emailPendente, setEmailPendente] = useState<string | null>(null);
   const [podeReenviar, setPodeReenviar] = useState(false);
   const [avisoReenvio, setAvisoReenvio] = useState<string | null>(null);
+  // "Esqueci minha senha": formulário de recuperação e email para onde o link foi enviado
+  const [recuperando, setRecuperando] = useState(new URLSearchParams(location.search).get("modo") === "recuperar");
+  const [linkEnviadoPara, setLinkEnviadoPara] = useState<string | null>(null);
 
   // Já logado (ex.: sessão salva ou voltou pelo link de confirmação): vai direto para o app
   if (!carregando && session) return <Navigate to={destino} replace />;
 
   const trocarModo = (novo: Modo) => {
     setModo(novo);
+    setRecuperando(false);
+    setLinkEnviadoPara(null);
     setErros({});
     setErroGeral(null);
     setSenha("");
     setConfirmacao("");
     setPodeReenviar(false);
     setAvisoReenvio(null);
+  };
+
+  const pedirLinkRedefinicao = async (e: FormEvent) => {
+    e.preventDefault();
+    setErroGeral(null);
+    const erroEmail = validarEmail(email);
+    setErros(erroEmail ? { email: erroEmail } : {});
+    if (erroEmail) return;
+    setEnviando(true);
+    const erro = await enviarLinkRedefinicao(email);
+    setEnviando(false);
+    if (erro) setErroGeral(erro);
+    else setLinkEnviadoPara(email.trim());
   };
 
   /** Valida os campos antes de chamar o Supabase. */
@@ -184,7 +202,66 @@ export default function LoginPage() {
 
           <Card className="border border-border">
             <CardContent className="p-6 sm:p-8">
-              {emailPendente ? (
+              {recuperando ? (
+                /* ---------- Esqueci minha senha ---------- */
+                linkEnviadoPara ? (
+                  <div className="text-center">
+                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-success/10">
+                      <MailCheck className="h-7 w-7 text-success" />
+                    </div>
+                    <h1 className="text-xl font-bold text-foreground">Verifique seu email</h1>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Se existir uma conta com <strong className="text-foreground">{linkEnviadoPara}</strong>, você vai receber
+                      um link para criar uma nova senha. Confira também a caixa de spam. O link vale por pouco tempo.
+                    </p>
+                    <div className="mt-6 flex flex-col gap-2">
+                      <Button onClick={() => trocarModo("entrar")}>Voltar para o login</Button>
+                      <Button variant="ghost" disabled={enviando} onClick={() => setLinkEnviadoPara(null)}>
+                        Não chegou? Enviar de novo
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <h1 className="text-xl font-bold text-foreground">Esqueceu a senha?</h1>
+                    <p className="mb-6 mt-1 text-sm text-muted-foreground">
+                      Informe o email da sua conta. Vamos enviar um link para você criar uma nova senha.
+                    </p>
+                    {erroGeral && (
+                      <Alert variant="destructive" className="mb-4">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>{erroGeral}</AlertDescription>
+                      </Alert>
+                    )}
+                    <form onSubmit={pedirLinkRedefinicao} noValidate className="space-y-4">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="email-recuperacao">Email</Label>
+                        <Input
+                          id="email-recuperacao"
+                          type="email"
+                          inputMode="email"
+                          autoComplete="email"
+                          placeholder="nome@dominio.com"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          aria-invalid={!!erros.email}
+                          className={cn(erros.email && "border-destructive")}
+                        />
+                        {erros.email && <p className="text-xs text-destructive">{erros.email}</p>}
+                      </div>
+                      <Button type="submit" className="w-full" disabled={enviando || !supabaseConfigurado}>
+                        {enviando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {enviando ? "Enviando..." : "Enviar link de redefinição"}
+                      </Button>
+                    </form>
+                    <p className="mt-6 text-center text-sm">
+                      <button type="button" className="font-medium text-primary hover:underline" onClick={() => trocarModo("entrar")}>
+                        Voltar para o login
+                      </button>
+                    </p>
+                  </>
+                )
+              ) : emailPendente ? (
                 /* ---------- Tela pós-cadastro: confirmar email ---------- */
                 <div className="text-center">
                   <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-success/10">
@@ -275,6 +352,22 @@ export default function LoginPage() {
                       erro={erros.senha}
                       autoComplete={modo === "entrar" ? "current-password" : "new-password"}
                     />
+
+                    {modo === "entrar" && (
+                      <div className="-mt-2 text-right">
+                        <button
+                          type="button"
+                          className="text-sm font-medium text-primary hover:underline"
+                          onClick={() => {
+                            setErros({});
+                            setErroGeral(null);
+                            setRecuperando(true);
+                          }}
+                        >
+                          Esqueci minha senha
+                        </button>
+                      </div>
+                    )}
 
                     {modo === "cadastrar" && (
                       <>
