@@ -81,8 +81,8 @@
       "titulo": "9. Assinatura, mensagens e suporte",
       "itens": [
         "Durante o teste grátis, uma faixa no topo mostra quantos dias faltam. Quando o teste ou o plano vence, o sistema mostra só a página Assinatura até o pagamento ser confirmado — os seus dados continuam guardados.",
-        "Para assinar, abra Assinatura no menu e clique em \"Assinar mensal\" (R$ 97,90) ou \"Assinar semestral\" (6 meses pelo preço de 5). O pagamento é feito no Mercado Pago, por PIX, cartão ou boleto. Assim que o pagamento é confirmado, tudo é liberado sozinho.",
-        "PIX e cartão costumam confirmar em poucos minutos; boleto, em até 2 dias úteis. Na página Assinatura, \"Meus pagamentos\" mostra a situação de cada pagamento e tem o botão \"Verificar\".",
+        "Para assinar, abra Assinatura no menu e clique em \"Assinar mensal\" (R$ 97,90) ou \"Assinar semestral\" (6 meses pelo preço de 5). Informe nome, CPF e celular e clique em \"Gerar PIX\". Leia o QR Code no app do seu banco (ou use o PIX Copia e Cola). Assim que o PIX cai, tudo é liberado sozinho.",
+        "O PIX costuma cair em segundos. Se fechar a janela antes, em Assinatura → Meus pagamentos tem \"Ver PIX\" (abre o mesmo código) e \"Verificar\".",
         "10 dias antes de vencer, você recebe um aviso na faixa do topo e na caixa de Mensagens. Renovando antes, os dias que faltavam são somados.",
         "Se a assinatura vencer, os dados continuam guardados. Basta renovar para voltar a usar normalmente.",
         "Na aba Mensagens chegam os avisos da equipe MatrizPro. Ela é só para leitura; o número ao lado do menu mostra as não lidas.",
@@ -97,7 +97,7 @@
     },
     {
       "pergunta": "Paguei e não liberou. E agora?",
-      "resposta": "Abra Assinatura → Meus pagamentos e clique em \"Verificar\". Boleto pode levar até 2 dias úteis. Se o pagamento aparecer como pago no Mercado Pago e mesmo assim não liberar, fale com o suporte."
+      "resposta": "Abra Assinatura → Meus pagamentos e clique em \"Verificar\". Se o PIX saiu da sua conta e mesmo assim não liberar, fale com o suporte com o comprovante."
     },
     {
       "pergunta": "Posso usar no celular?",

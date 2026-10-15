@@ -40,7 +40,7 @@ export const NEGOCIO = {
   mensagemWhatsapp: "Olá! Preciso de ajuda com o MatrizPro.",
 
   /**
-   * Links de pagamento avulsos (reserva). O pagamento normal é pelo Mercado Pago, com liberação
+   * Links de pagamento avulsos (reserva). O pagamento normal é por PIX (SyncPay), com liberação
    * automática (Edge Function "pagamentos"). Estes links só aparecem se o pagamento online
    * ainda não estiver ativado no servidor.
    */

@@ -12,15 +12,17 @@ Quase tudo se altera num único arquivo: **`src/config/negocio.ts`**.
   Se a ideia for outra (ex.: pagar 6 meses = R$ 587,40 e ganhar o 7º mês), avise para ajustar.
   → valores em `src/config/negocio.ts`, objeto `PLANOS`.
 
-- [x] **Forma de pagamento: Mercado Pago** (PIX, cartão e boleto), com **liberação automática**.
-  O servidor (Edge Function `pagamentos`) confere cada pagamento direto no Mercado Pago — status aprovado e valor certo do plano — antes de liberar.
-  Os pagamentos aparecem em **Assinantes → Pagamentos online**. Os botões "Pagou mensal/semestral" continuam para pagamentos por fora (PIX direto etc.).
-- [ ] **⚠️ PARA LIGAR O PAGAMENTO — falta só você (3 passos, ~10 min):**
+- [x] **Forma de pagamento: SyncPay (PIX)**, com **liberação automática**.
+  O cliente informa nome, CPF e celular (exigidos pela SyncPay), o app mostra o QR Code / PIX Copia e Cola e confere sozinho até o PIX cair.
+  O servidor (Edge Function `pagamentos`) consulta a cobrança direto na SyncPay — status "completed" e valor certo do plano — antes de liberar.
+  Os pagamentos aparecem em **Assinantes → Pagamentos online**. Os botões "Pagou mensal/semestral" continuam para pagamentos por fora.
+  (Cartão de crédito pela SyncPay exige tela de cartão própria — dá para adicionar depois, se quiser.)
+- [ ] **⚠️ PARA LIGAR O PAGAMENTO — falta só você (3 passos):**
   1. Supabase → Edge Functions → **pagamentos** → aba **Settings** → desligar **"Verify JWT with legacy secret"** → **Save changes**.
-  2. Mercado Pago → **Suas integrações** (mercadopago.com.br/developers/panel/app) → **Criar aplicação** ("Pagamentos online", produto **Checkout Pro**) → **Credenciais de produção** → copiar o **Access Token** (começa com `APP_USR-`).
-  3. Supabase → Edge Functions → **Secrets** → **Add new secret**: nome `MP_ACCESS_TOKEN`, valor = o Access Token. **Não mande esse código para ninguém** (nem para mim): ele dá acesso à sua conta do Mercado Pago.
-  Opcional (mais segurança): no Mercado Pago, em **Webhooks**, cadastrar a URL `https://txcglwflynguuazsjuya.supabase.co/functions/v1/pagamentos` com o evento **Pagamentos**, e colar a "assinatura secreta" no secret `MP_WEBHOOK_SECRET`.
-  Enquanto o token não estiver lá, o botão "Assinar" mostra "O pagamento online ainda não foi ativado".
+  2. Painel da SyncPay → área de **API / credenciais** → gerar o par **client_id** e **client_secret** (o secret só aparece uma vez). A conta precisa estar **aprovada** na SyncPay.
+  3. Supabase → Edge Functions → **Secrets** → **Add new secret** duas vezes: `SYNCPAY_CLIENT_ID` = client_id e `SYNCPAY_CLIENT_SECRET` = client_secret. **Não mande esses códigos para ninguém** (nem para mim): eles dão acesso à sua conta da SyncPay.
+  Não precisa cadastrar webhook no painel: cada PIX já avisa o MatrizPro sozinho.
+  Enquanto as credenciais não estiverem lá, o botão "Gerar PIX" mostra "O pagamento online ainda não foi ativado".
 
 - [x] **Aviso de renovação:** 10 dias antes de vencer, na faixa do topo **e** na caixa de Mensagens, com os links dos dois planos (`diasAvisoRenovacao` em `src/config/negocio.ts`).
 - [x] **Caixa de mensagens:** só a administradora (Karen) envia, em **Mensagens → Enviar mensagem** (para todos ou para uma pessoa); os usuários só leem.

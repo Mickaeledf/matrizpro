@@ -1,31 +1,16 @@
 import { useState } from "react";
-import { toast } from "sonner";
-import { Check, CreditCard, Loader2 } from "lucide-react";
+import { Check, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { NEGOCIO, PLANOS, PlanoPago, economiaSemestral, moeda } from "@/config/negocio";
+import { PLANOS, PlanoPago, economiaSemestral, moeda } from "@/config/negocio";
 import { cn } from "@/lib/utils";
-import { iniciarPagamento } from "@/lib/pagamentos";
+import { PagamentoPixDialog } from "./PagamentoPixDialog";
 
 /**
- * Cartões dos planos Mensal e Semestral. "Assinar" leva ao Mercado Pago (PIX, cartão ou boleto);
- * o plano é liberado sozinho assim que o pagamento é confirmado.
+ * Cartões dos planos Mensal e Semestral. "Assinar" gera um PIX (SyncPay) e o plano é
+ * liberado sozinho assim que o pagamento cai.
  */
 export function PlanosAssinatura({ compacto = false }: { compacto?: boolean }) {
-  const [abrindo, setAbrindo] = useState<PlanoPago | null>(null);
-
-  const assinar = async (p: PlanoPago) => {
-    setAbrindo(p);
-    const r = await iniciarPagamento(p);
-    if (r.dados?.url) {
-      window.location.href = r.dados.url;
-      return;
-    }
-    setAbrindo(null);
-    // Reserva: pagamento online ainda não ativado, mas existe link avulso
-    const reserva = NEGOCIO.linksPagamento[p];
-    if (r.naoConfigurado && reserva) window.open(reserva, "_blank", "noreferrer");
-    else toast.error(r.erro ?? "Não foi possível abrir o pagamento.");
-  };
+  const [escolhido, setEscolhido] = useState<PlanoPago | null>(null);
 
   return (
     <div className={cn("grid gap-3", compacto ? "sm:grid-cols-2" : "md:grid-cols-2")}>
@@ -65,18 +50,13 @@ export function PlanosAssinatura({ compacto = false }: { compacto?: boolean }) {
                 )}
               </ul>
             )}
-            <Button
-              className="mt-3 gap-2"
-              variant={destaque ? "default" : "outline"}
-              disabled={abrindo !== null}
-              onClick={() => assinar(p)}
-            >
-              {abrindo === p ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-              {abrindo === p ? "Abrindo pagamento…" : `Assinar ${plano.nome.toLowerCase()}`}
+            <Button className="mt-3 gap-2" variant={destaque ? "default" : "outline"} onClick={() => setEscolhido(p)}>
+              <QrCode className="h-4 w-4" /> Assinar {plano.nome.toLowerCase()}
             </Button>
           </div>
         );
       })}
+      <PagamentoPixDialog plano={escolhido} onFechar={() => setEscolhido(null)} />
     </div>
   );
 }

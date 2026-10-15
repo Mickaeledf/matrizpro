@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { CheckCircle2, Clock, CreditCard, Loader2, Lock, MessageCircle, RefreshCw, ShieldCheck } from "lucide-react";
+import { CheckCircle2, Clock, Loader2, Lock, MessageCircle, QrCode, RefreshCw, ShieldCheck } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAssinatura } from "@/lib/assinatura";
 import { ABAS_PLANO_PAGO, NEGOCIO, PLANOS, linkWhatsapp, moeda } from "@/config/negocio";
 import { PlanosAssinatura } from "@/components/assinatura/PlanosAssinatura";
+import { PagamentoPixDialog, PixGerado } from "@/components/assinatura/PagamentoPixDialog";
 import { Pagamento, ROTULO_STATUS_PAGAMENTO, confirmarPagamento, listarPagamentos } from "@/lib/pagamentos";
 import { cn } from "@/lib/utils";
 
@@ -22,50 +22,40 @@ const ABAS_BASICAS = ["Painel", "Matrizes", "Lotes", "Mensagens", "Suporte", "Co
 export default function AssinaturaPage() {
   const situacao = useAssinatura((s) => s.situacao);
   const recarregarAssinatura = useAssinatura((s) => s.carregar);
-  const [params, setParams] = useSearchParams();
-  const pedidoRetorno = params.get("pedido");
-  const [conferindo, setConferindo] = useState(false);
-  const [pendente, setPendente] = useState<string | null>(null);
+  const [conferindo, setConferindo] = useState<string | null>(null);
   const [pagamentos, setPagamentos] = useState<Pagamento[]>([]);
+  const [pixAberto, setPixAberto] = useState<PixGerado | null>(null);
   const whatsapp = linkWhatsapp("Olá! Preciso de ajuda com a assinatura do MatrizPro.");
 
   const carregarPagamentos = useCallback(() => {
     listarPagamentos(20).then(setPagamentos);
   }, []);
 
-  useEffect(carregarPagamentos, [carregarPagamentos]);
+  // Recarrega o histórico ao abrir e quando a situação muda (ex.: PIX pago)
+  useEffect(carregarPagamentos, [carregarPagamentos, situacao.tipo]);
 
-  /** Confere no servidor se o pedido foi pago (o servidor consulta o Mercado Pago). */
-  const conferir = useCallback(
-    async (pedido: string) => {
-      setConferindo(true);
-      const r = await confirmarPagamento(pedido);
-      setConferindo(false);
-      carregarPagamentos();
-      if (r.dados === null) {
-        toast.error(r.erro);
-        return;
-      }
-      if (r.dados.status === "aprovado") {
-        setPendente(null);
-        await recarregarAssinatura();
-        toast.success("Pagamento confirmado! Todas as abas foram liberadas.");
-      } else if (r.dados.status === "pendente") {
-        setPendente(pedido);
-      } else {
-        setPendente(null);
-        toast.error(`Pagamento ${ROTULO_STATUS_PAGAMENTO[r.dados.status].toLowerCase()}. Tente de novo ou use outra forma de pagamento.`);
-      }
-    },
-    [carregarPagamentos, recarregarAssinatura]
-  );
+  /** Confere no servidor se o pedido foi pago (o servidor consulta a SyncPay). */
+  const conferir = async (pedido: string) => {
+    setConferindo(pedido);
+    const r = await confirmarPagamento(pedido);
+    setConferindo(null);
+    carregarPagamentos();
+    if (r.dados === null) {
+      toast.error(r.erro);
+    } else if (r.dados.status === "aprovado") {
+      await recarregarAssinatura();
+      toast.success("Pagamento confirmado! Todas as abas foram liberadas.");
+    } else if (r.dados.status === "pendente") {
+      toast.info("O PIX ainda não caiu. Assim que cair, o acesso é liberado sozinho.");
+    } else {
+      toast.error(`Pagamento ${ROTULO_STATUS_PAGAMENTO[r.dados.status].toLowerCase()}. Gere um novo PIX para tentar de novo.`);
+    }
+  };
 
-  // Voltou do Mercado Pago: confere o pedido e limpa o endereço
-  useEffect(() => {
-    if (!pedidoRetorno) return;
-    conferir(pedidoRetorno);
-    setParams({}, { replace: true });
-  }, [pedidoRetorno, conferir, setParams]);
+  const fecharPix = () => {
+    setPixAberto(null);
+    carregarPagamentos();
+  };
 
   const vencida = situacao.tipo === "expirada";
   const bloqueada = situacao.tipo === "bloqueada";
@@ -132,32 +122,14 @@ export default function AssinaturaPage() {
         </CardContent>
       </Card>
 
-      {(conferindo || pendente) && (
-        <Card className="border border-info">
-          <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center">
-            {conferindo ? <Loader2 className="h-5 w-5 animate-spin text-info" /> : <Clock className="h-5 w-5 text-info" />}
-            <p className="flex-1 text-sm text-foreground">
-              {conferindo
-                ? "Conferindo seu pagamento com o Mercado Pago…"
-                : "Pagamento ainda não confirmado. PIX e cartão costumam confirmar em poucos minutos; boleto, em até 2 dias úteis. O acesso é liberado sozinho assim que confirmar."}
-            </p>
-            {!conferindo && pendente && (
-              <Button variant="outline" size="sm" className="gap-2" onClick={() => conferir(pendente)}>
-                <RefreshCw className="h-4 w-4" /> Verificar agora
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
       {situacao.tipo !== "vitalicio" && !bloqueada && (
         <Card className="border border-border">
           <CardContent className="space-y-4 p-4 sm:p-6">
             <div>
               <h2 className="text-lg font-bold text-foreground">Planos</h2>
               <p className="text-sm text-muted-foreground">
-                Pagamento pelo Mercado Pago: PIX, cartão de crédito ou boleto. A liberação é automática, assim que o pagamento é
-                confirmado.
+                Pagamento por PIX: escolha o plano, leia o QR Code no app do seu banco e pronto — a liberação é automática assim
+                que o PIX cai, normalmente em segundos.
               </p>
             </div>
             <PlanosAssinatura />
@@ -200,9 +172,22 @@ export default function AssinaturaPage() {
                     {ROTULO_STATUS_PAGAMENTO[p.status]}
                   </Badge>
                   {p.status === "pendente" && (
-                    <Button variant="ghost" size="sm" className="h-7 gap-1" disabled={conferindo} onClick={() => conferir(p.id)}>
-                      <RefreshCw className="h-3.5 w-3.5" /> Verificar
-                    </Button>
+                    <span className="flex gap-1">
+                      {p.pix_codigo && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 gap-1"
+                          onClick={() => setPixAberto({ pedido: p.id, pix: p.pix_codigo!, valor: p.valor, plano: p.plano })}
+                        >
+                          <QrCode className="h-3.5 w-3.5" /> Ver PIX
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="sm" className="h-7 gap-1" disabled={!!conferindo} onClick={() => conferir(p.id)}>
+                        {conferindo === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                        Verificar
+                      </Button>
+                    </span>
                   )}
                 </li>
               ))}
@@ -211,12 +196,7 @@ export default function AssinaturaPage() {
         </Card>
       )}
 
-      {situacao.tipo !== "vitalicio" && (
-        <p className="flex items-center gap-2 text-xs text-muted-foreground">
-          <CreditCard className="h-3.5 w-3.5" /> O MatrizPro não vê nem guarda os dados do seu cartão: o pagamento é feito no
-          ambiente seguro do Mercado Pago.
-        </p>
-      )}
+      <PagamentoPixDialog plano={null} pixExistente={pixAberto} onFechar={fecharPix} />
     </div>
   );
 }

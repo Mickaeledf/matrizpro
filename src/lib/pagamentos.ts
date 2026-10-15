@@ -3,9 +3,9 @@ import { supabase } from "@/lib/supabase";
 import { PlanoPago } from "@/config/negocio";
 
 /**
- * Pagamento online (Mercado Pago), feito pela Edge Function "pagamentos"
+ * Pagamento online por PIX (SyncPay), feito pela Edge Function "pagamentos"
  * (código em supabase/functions/pagamentos/index.ts).
- * A liberação do plano acontece no servidor, só depois de conferir o pagamento no Mercado Pago.
+ * A liberação do plano acontece no servidor, só depois de conferir a cobrança na SyncPay.
  */
 
 export type StatusPagamento = "pendente" | "aprovado" | "recusado" | "cancelado" | "estornado";
@@ -17,6 +17,7 @@ export interface Pagamento {
   valor: number;
   status: StatusPagamento;
   forma: string | null;
+  pix_codigo: string | null;
   criado_em: string;
   aprovado_em: string | null;
 }
@@ -27,6 +28,43 @@ export const ROTULO_STATUS_PAGAMENTO: Record<StatusPagamento, string> = {
   recusado: "Recusado",
   cancelado: "Cancelado",
   estornado: "Estornado",
+};
+
+/** Dados de quem paga, exigidos pela SyncPay para gerar o PIX. */
+export interface DadosPagador {
+  nome: string;
+  cpf: string;
+  celular: string;
+}
+
+export const soDigitos = (v: string) => v.replace(/\D/g, "");
+
+/** Confere os dígitos verificadores do CPF. */
+export function cpfValido(valor: string) {
+  const cpf = soDigitos(valor);
+  if (!/^\d{11}$/.test(cpf) || /^(\d)\1{10}$/.test(cpf)) return false;
+  const dv = (base: string, peso: number) => {
+    let soma = 0;
+    for (const d of base) soma += Number(d) * peso--;
+    const resto = (soma * 10) % 11;
+    return resto === 10 ? 0 : resto;
+  };
+  return dv(cpf.slice(0, 9), 10) === Number(cpf[9]) && dv(cpf.slice(0, 10), 11) === Number(cpf[10]);
+}
+
+export const formatarCpf = (v: string) =>
+  soDigitos(v)
+    .slice(0, 11)
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+
+export const formatarCelular = (v: string) => {
+  const d = soDigitos(v).slice(0, 11);
+  if (d.length <= 2) return d;
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 };
 
 type Resposta<T> = { dados: T; erro: null; naoConfigurado?: false } | { dados: null; erro: string; naoConfigurado: boolean };
@@ -41,18 +79,21 @@ async function chamar<T>(corpo: Record<string, unknown>): Promise<Resposta<T>> {
     const info = await error.context.json().catch(() => null);
     if (info?.erro) mensagem = info.erro;
     naoConfigurado = !!info?.naoConfigurado;
-  } else if (/not found|404/i.test(error.message)) {
-    naoConfigurado = true;
-    mensagem = "O pagamento online ainda não foi ativado. Fale com o suporte.";
   }
   return { dados: null, erro: mensagem, naoConfigurado };
 }
 
-/** Cria o pedido e devolve o endereço do Mercado Pago para pagar. */
-export const iniciarPagamento = (plano: PlanoPago) =>
-  chamar<{ url: string; pedido: string }>({ acao: "criar", plano, retorno: window.location.origin });
+/** Cria o pedido e gera o PIX (código copia e cola) na SyncPay. */
+export const gerarPix = (plano: PlanoPago, pagador: DadosPagador) =>
+  chamar<{ pedido: string; pix: string; valor: number }>({
+    acao: "criar",
+    plano,
+    nome: pagador.nome.trim(),
+    cpf: soDigitos(pagador.cpf),
+    celular: soDigitos(pagador.celular),
+  });
 
-/** Ao voltar do Mercado Pago: confere o pedido e libera o plano se estiver pago. */
+/** Confere na SyncPay se o pedido foi pago (e libera o plano, se foi). */
 export const confirmarPagamento = (pedido: string) =>
   chamar<{ status: StatusPagamento }>({ acao: "confirmar", pedido });
 
@@ -60,7 +101,7 @@ export const confirmarPagamento = (pedido: string) =>
 export async function listarPagamentos(limite = 50): Promise<Pagamento[]> {
   const { data, error } = await supabase
     .from("pagamentos")
-    .select("id, user_id, plano, valor, status, forma, criado_em, aprovado_em")
+    .select("id, user_id, plano, valor, status, forma, pix_codigo, criado_em, aprovado_em")
     .order("criado_em", { ascending: false })
     .limit(limite);
   if (error) {

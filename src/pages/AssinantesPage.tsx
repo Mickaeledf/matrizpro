@@ -313,7 +313,7 @@ export default function AssinantesPage() {
         <CardContent className="p-4 sm:p-6">
           <h2 className="text-lg font-bold text-foreground">Pagamentos online</h2>
           <p className="mb-3 text-sm text-muted-foreground">
-            Pedidos feitos pelo Mercado Pago. "Pago" só aparece depois que o servidor confere o pagamento no Mercado Pago (status
+            Pedidos de PIX feitos pela SyncPay. "Pago" só aparece depois que o servidor confere a cobrança na SyncPay (status
             aprovado e valor certo do plano) — aí o acesso já foi liberado automaticamente.
           </p>
           {pagamentos.length === 0 ? (
