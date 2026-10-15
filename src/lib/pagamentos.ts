@@ -110,3 +110,6 @@ export async function listarPagamentos(limite = 50): Promise<Pagamento[]> {
   }
   return (data ?? []).map((p) => ({ ...p, valor: Number(p.valor) })) as Pagamento[];
 }
+
+/** Administradora: confere se as credenciais da SyncPay funcionam (não gera cobrança). */
+export const testarSyncPay = () => chamar<{ ok: boolean; erro?: string }>({ acao: "testar" });

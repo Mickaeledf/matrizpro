@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useConfirm } from "@/components/ConfirmDialog";
 import { NEGOCIO, PLANOS, PlanoPago, moeda } from "@/config/negocio";
 import { cn } from "@/lib/utils";
-import { Pagamento, ROTULO_STATUS_PAGAMENTO, listarPagamentos } from "@/lib/pagamentos";
+import { Pagamento, ROTULO_STATUS_PAGAMENTO, listarPagamentos, testarSyncPay } from "@/lib/pagamentos";
 
 interface Assinante {
   user_id: string;
@@ -60,6 +60,15 @@ export default function AssinantesPage() {
   const [busca, setBusca] = useState("");
   const [executando, setExecutando] = useState<string | null>(null);
   const [pagamentos, setPagamentos] = useState<Pagamento[]>([]);
+  const [testando, setTestando] = useState(false);
+
+  const testarConexao = async () => {
+    setTestando(true);
+    const r = await testarSyncPay();
+    setTestando(false);
+    if (r.dados?.ok) toast.success("SyncPay conectada! O pagamento por PIX está ativo.");
+    else toast.error(r.dados?.erro ?? r.erro ?? "Não foi possível testar a SyncPay.");
+  };
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -311,7 +320,13 @@ export default function AssinantesPage() {
 
       <Card className="border border-border">
         <CardContent className="p-4 sm:p-6">
-          <h2 className="text-lg font-bold text-foreground">Pagamentos online</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-bold text-foreground">Pagamentos online</h2>
+            <Button variant="outline" size="sm" className="gap-2" disabled={testando} onClick={testarConexao}>
+              {testando ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+              Testar conexão com a SyncPay
+            </Button>
+          </div>
           <p className="mb-3 text-sm text-muted-foreground">
             Pedidos de PIX feitos pela SyncPay. "Pago" só aparece depois que o servidor confere a cobrança na SyncPay (status
             aprovado e valor certo do plano) — aí o acesso já foi liberado automaticamente.

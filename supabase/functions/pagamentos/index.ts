@@ -162,6 +162,24 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // ------------------------------------------- teste da conexão (só admin)
+    // Só pede o token de acesso à SyncPay: confere as credenciais sem gerar cobrança.
+    if (corpo.acao === "testar") {
+      const usuario = await usuarioDaRequisicao(req);
+      if (!usuario) return json({ erro: "Faça login novamente." }, 401);
+      const { data: assinatura } = await db.from("assinaturas").select("admin").eq("user_id", usuario.id).maybeSingle();
+      if (!assinatura?.admin) return json({ erro: "Acesso restrito à administradora." }, 403);
+      if (!configurado()) return json({ ok: false, erro: "Credenciais da SyncPay não cadastradas nos Secrets." });
+      try {
+        tokenCache = null;
+        await tokenSyncPay();
+        return json({ ok: true });
+      } catch (e) {
+        console.error("[pagamentos] teste", e);
+        return json({ ok: false, erro: "A SyncPay recusou as credenciais. Confira o client_id e o client_secret." });
+      }
+    }
+
     // ---------------------------------------------------------------- app
     if (corpo.acao === "criar" || corpo.acao === "confirmar") {
       const usuario = await usuarioDaRequisicao(req);
