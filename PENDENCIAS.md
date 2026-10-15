@@ -48,11 +48,7 @@ Quase tudo se altera num único arquivo: **`src/config/negocio.ts`**.
   Opções: Resend, Brevo, Amazon SES, Gmail (Workspace). Configurar em Supabase → Authentication → Emails → SMTP Settings.
 - [ ] **Remetente e texto dos emails** (nome "MatrizPro", logo, português) em Supabase → Authentication → Emails → Templates.
 - [ ] **Email "Redefinir senha" em português:** o botão "Esqueci minha senha" já funciona, mas o email chega com o texto padrão em inglês do Supabase. Traduzir em Authentication → Emails → Templates → *Reset Password*. Ao publicar o site, o endereço novo precisa estar em **Redirect URLs** (senão o link de nova senha não abre).
-- [ ] **Colocar o site no ar — Vercel (grátis)** — o projeto já está pronto (`vercel.json`):
-  1. Entrar em vercel.com → **Sign Up** → **Continue with GitHub** (a mesma conta do repositório `Mickaeledf/matrizpro`).
-  2. **Add New → Project** → escolher `matrizpro` → **Deploy**. Em 2 minutos o site fica em `matrizpro.vercel.app` (ou parecido).
-  3. A cada `git push`, o site atualiza sozinho.
-  4. No Supabase → Authentication → **URL Configuration**: trocar o **Site URL** pelo endereço novo e adicionar `https://SEU-ENDERECO/**` em **Redirect URLs** (senão os links de confirmação e de nova senha não abrem).
+- [x] **Site no ar: https://matrizpro.vercel.app** (Vercel, grátis). A cada `git push` o site atualiza sozinho. Supabase já configurado (Site URL + Redirect URLs).
 - [ ] **Domínio próprio** (ex.: `matrizpro.com.br`): registrar no **Registro.br** (~R$ 40/ano) e, na Vercel, **Settings → Domains → Add** — ela mostra os 2 registros para copiar no Registro.br. Depois, repetir o passo 4 acima com o domínio novo.
   Depois de publicar, adicionar o endereço em Supabase → Authentication → URL Configuration (Site URL e Redirect URLs).
 

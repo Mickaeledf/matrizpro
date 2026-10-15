@@ -29,9 +29,9 @@ Projeto Supabase: `matrizpro` (região São Paulo). Configuração já aplicada:
 - Teste de 7 dias e pagamentos online: [`supabase/migrations/004_teste_7_dias_e_pagamentos.sql`](supabase/migrations/004_teste_7_dias_e_pagamentos.sql) (já executado) + Edge Function `pagamentos` (publicada; precisa do secret `MP_ACCESS_TOKEN` e de "Verify JWT" desligado — ver `PENDENCIAS.md`).
 - Base de demonstração (50 leitões, uma situação de cada) da conta da Karen: [`supabase/seed/base_exemplo_karen.sql`](supabase/seed/base_exemplo_karen.sql) (já executado). Base grande para teste de desempenho: [`supabase/seed/base_grande_10mil.sql`](supabase/seed/base_grande_10mil.sql).
 - Authentication → Email: **Confirm email** ativado; senha com mínimo de 8 caracteres, letras e números.
-- Authentication → URL Configuration: Site URL `http://localhost:8080` e Redirect URL `http://localhost:8080/**`.
+- Authentication → URL Configuration: Site URL `https://matrizpro.vercel.app`; Redirect URLs `https://matrizpro.vercel.app/**` e `http://localhost:8080/**`.
 
-Ao publicar o app, adicione o endereço publicado em **Redirect URLs** (e troque o **Site URL**).
+Site publicado na **Vercel**: https://matrizpro.vercel.app (atualiza a cada push na `main`). Ao trocar de domínio, adicione o novo em **Redirect URLs** e troque o **Site URL**.
 
 O serviço de email padrão do Supabase envia poucos emails por hora e só entrega para membros da equipe do projeto. Para cadastrar usuários reais, configure um SMTP próprio em **Authentication → Emails → SMTP Settings**.
 
