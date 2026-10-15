@@ -1,15 +1,36 @@
-import { Check, CreditCard } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { Check, CreditCard, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NEGOCIO, PLANOS, PlanoPago, economiaSemestral, moeda } from "@/config/negocio";
 import { cn } from "@/lib/utils";
+import { iniciarPagamento } from "@/lib/pagamentos";
 
-/** Cartões dos planos Mensal e Semestral, cada um com seu link de pagamento. */
+/**
+ * Cartões dos planos Mensal e Semestral. "Assinar" leva ao Mercado Pago (PIX, cartão ou boleto);
+ * o plano é liberado sozinho assim que o pagamento é confirmado.
+ */
 export function PlanosAssinatura({ compacto = false }: { compacto?: boolean }) {
+  const [abrindo, setAbrindo] = useState<PlanoPago | null>(null);
+
+  const assinar = async (p: PlanoPago) => {
+    setAbrindo(p);
+    const r = await iniciarPagamento(p);
+    if (r.dados?.url) {
+      window.location.href = r.dados.url;
+      return;
+    }
+    setAbrindo(null);
+    // Reserva: pagamento online ainda não ativado, mas existe link avulso
+    const reserva = NEGOCIO.linksPagamento[p];
+    if (r.naoConfigurado && reserva) window.open(reserva, "_blank", "noreferrer");
+    else toast.error(r.erro ?? "Não foi possível abrir o pagamento.");
+  };
+
   return (
     <div className={cn("grid gap-3", compacto ? "sm:grid-cols-2" : "md:grid-cols-2")}>
       {(Object.keys(PLANOS) as PlanoPago[]).map((p) => {
         const plano = PLANOS[p];
-        const link = NEGOCIO.linksPagamento[p];
         const destaque = p === "semestral";
         return (
           <div
@@ -32,6 +53,9 @@ export function PlanosAssinatura({ compacto = false }: { compacto?: boolean }) {
             {!compacto && (
               <ul className="mt-3 flex-1 space-y-1 text-sm text-foreground/90">
                 <li className="flex items-center gap-1.5">
+                  <Check className="h-4 w-4 text-success" /> Todas as abas liberadas
+                </li>
+                <li className="flex items-center gap-1.5">
                   <Check className="h-4 w-4 text-success" /> {plano.descricao}
                 </li>
                 {destaque && (
@@ -41,17 +65,15 @@ export function PlanosAssinatura({ compacto = false }: { compacto?: boolean }) {
                 )}
               </ul>
             )}
-            {link ? (
-              <Button asChild className="mt-3 gap-2" variant={destaque ? "default" : "outline"}>
-                <a href={link} target="_blank" rel="noreferrer">
-                  <CreditCard className="h-4 w-4" /> Assinar {plano.nome.toLowerCase()}
-                </a>
-              </Button>
-            ) : (
-              <Button disabled className="mt-3 gap-2" variant="outline">
-                <CreditCard className="h-4 w-4" /> Pagamento online em breve
-              </Button>
-            )}
+            <Button
+              className="mt-3 gap-2"
+              variant={destaque ? "default" : "outline"}
+              disabled={abrindo !== null}
+              onClick={() => assinar(p)}
+            >
+              {abrindo === p ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+              {abrindo === p ? "Abrindo pagamento…" : `Assinar ${plano.nome.toLowerCase()}`}
+            </Button>
           </div>
         );
       })}

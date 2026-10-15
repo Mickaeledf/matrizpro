@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useConfirm } from "@/components/ConfirmDialog";
 import { NEGOCIO, PLANOS, PlanoPago, moeda } from "@/config/negocio";
 import { cn } from "@/lib/utils";
+import { Pagamento, ROTULO_STATUS_PAGAMENTO, listarPagamentos } from "@/lib/pagamentos";
 
 interface Assinante {
   user_id: string;
@@ -58,6 +59,7 @@ export default function AssinantesPage() {
   const [carregando, setCarregando] = useState(true);
   const [busca, setBusca] = useState("");
   const [executando, setExecutando] = useState<string | null>(null);
+  const [pagamentos, setPagamentos] = useState<Pagamento[]>([]);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -65,6 +67,7 @@ export default function AssinantesPage() {
     setCarregando(false);
     if (error) return toast.error(`Não foi possível carregar: ${error.message}`);
     setLista((data ?? []) as Assinante[]);
+    setPagamentos(await listarPagamentos(100));
   }, []);
 
   useEffect(() => {
@@ -260,10 +263,10 @@ export default function AssinantesPage() {
                               variant="ghost"
                               className="gap-1"
                               disabled={!!executando}
-                              onClick={() => executar(a, "teste", 10)}
-                              title="Estender o teste grátis em 10 dias"
+                              onClick={() => executar(a, "teste", NEGOCIO.diasTeste)}
+                              title={`Estender o teste grátis em ${NEGOCIO.diasTeste} dias`}
                             >
-                              <CalendarPlus className="h-4 w-4" /> +10 teste
+                              <CalendarPlus className="h-4 w-4" /> +{NEGOCIO.diasTeste} teste
                             </Button>
                             {a.plano === "bloqueado" ? (
                               <Button size="sm" variant="ghost" className="gap-1" disabled={!!executando} onClick={() => executar(a, "desbloquear")}>
@@ -300,6 +303,53 @@ export default function AssinantesPage() {
                     </TableCell>
                   </TableRow>
                 )}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="border border-border">
+        <CardContent className="p-4 sm:p-6">
+          <h2 className="text-lg font-bold text-foreground">Pagamentos online</h2>
+          <p className="mb-3 text-sm text-muted-foreground">
+            Pedidos feitos pelo Mercado Pago. "Pago" só aparece depois que o servidor confere o pagamento no Mercado Pago (status
+            aprovado e valor certo do plano) — aí o acesso já foi liberado automaticamente.
+          </p>
+          {pagamentos.length === 0 ? (
+            <p className="py-4 text-center text-sm text-muted-foreground">Nenhum pagamento online ainda.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Plano</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead>Forma</TableHead>
+                  <TableHead>Situação</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pagamentos.map((p) => (
+                  <TableRow key={p.id}>
+                    <TableCell className="whitespace-nowrap">{fmt(p.criado_em)}</TableCell>
+                    <TableCell>{lista.find((a) => a.user_id === p.user_id)?.email ?? "—"}</TableCell>
+                    <TableCell>{PLANOS[p.plano].nome}</TableCell>
+                    <TableCell className="text-right">{moeda(p.valor)}</TableCell>
+                    <TableCell className="uppercase">{p.forma ?? "—"}</TableCell>
+                    <TableCell>
+                      <span
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-xs font-medium",
+                          p.status === "aprovado" ? "bg-success/10 text-success" : p.status === "pendente" ? "bg-info/10 text-info" : "bg-destructive/10 text-destructive"
+                        )}
+                      >
+                        {ROTULO_STATUS_PAGAMENTO[p.status]}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           )}

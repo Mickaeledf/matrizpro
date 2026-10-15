@@ -1,10 +1,11 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, GitBranch, Layers, BarChart3, FileText, Settings, LogOut, Cloud, CloudOff, Loader2, Dna, LifeBuoy, Mail, Users, Wallet } from "lucide-react";
+import { LayoutDashboard, GitBranch, Layers, BarChart3, FileText, Settings, LogOut, Cloud, CloudOff, Loader2, Dna, LifeBuoy, Lock, Mail, Users, Wallet, CreditCard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/store/useStore";
 import { useAuth } from "@/contexts/auth";
 import { useStatusSincronizacao } from "@/lib/sincronizacao";
-import { useAssinatura } from "@/lib/assinatura";
+import { acessoLiberado, planoCompleto, useAssinatura } from "@/lib/assinatura";
+import { abaDoPlanoPago } from "@/config/negocio";
 import { contarNaoLidas, useMensagens } from "@/lib/mensagens";
 import { Logo } from "@/components/Logo";
 
@@ -35,6 +36,11 @@ export function AppSidebar({ onNavigate, className }: { onNavigate?: () => void;
   const { status, erro } = useStatusSincronizacao();
   const IconeStatus = status === "erro" ? CloudOff : status === "sincronizado" ? Cloud : Loader2;
   const admin = useAssinatura((s) => s.admin);
+  const situacao = useAssinatura((s) => s.situacao);
+  // Teste/plano vencido: o menu mostra só a Assinatura
+  const vencido = !acessoLiberado(situacao);
+  // Teste grátis: abas dos planos pagos aparecem com cadeado
+  const completo = planoCompleto(situacao);
   const naoLidas = useMensagens((s) => contarNaoLidas(s.mensagens, user?.id));
 
   const linkClass = (ativo: boolean) =>
@@ -56,20 +62,34 @@ export function AppSidebar({ onNavigate, className }: { onNavigate?: () => void;
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            onClick={onNavigate}
-            className={linkClass(estaAtivo(location.pathname, item.to))}
-          >
-            <item.icon className="h-4 w-4" />
-            {item.label}
+        {vencido ? (
+          <NavLink to="/assinatura" onClick={onNavigate} className={linkClass(true)}>
+            <CreditCard className="h-4 w-4" />
+            Assinatura
           </NavLink>
-        ))}
+        ) : (
+          navItems.map((item) => {
+            const travada = !completo && !!abaDoPlanoPago(item.to);
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                onClick={onNavigate}
+                className={linkClass(estaAtivo(location.pathname, item.to))}
+                title={travada ? "Disponível nos planos pagos" : undefined}
+              >
+                <item.icon className="h-4 w-4" />
+                {item.label}
+                {travada && <Lock className="ml-auto h-3.5 w-3.5 opacity-70" aria-label="Plano pago" />}
+              </NavLink>
+            );
+          })
+        )}
       </nav>
 
       <div className="space-y-1 border-t border-sidebar-custom-hover px-3 py-4">
+        {!vencido && (
+          <>
         <NavLink to="/mensagens" onClick={onNavigate} className={linkClass(estaAtivo(location.pathname, "/mensagens"))}>
           <Mail className="h-4 w-4" />
           Mensagens
@@ -82,6 +102,12 @@ export function AppSidebar({ onNavigate, className }: { onNavigate?: () => void;
             </span>
           )}
         </NavLink>
+        {situacao.tipo !== "vitalicio" && (
+          <NavLink to="/assinatura" onClick={onNavigate} className={linkClass(estaAtivo(location.pathname, "/assinatura"))}>
+            <CreditCard className="h-4 w-4" />
+            Assinatura
+          </NavLink>
+        )}
         <NavLink to="/suporte" onClick={onNavigate} className={linkClass(estaAtivo(location.pathname, "/suporte"))}>
           <LifeBuoy className="h-4 w-4" />
           Suporte
@@ -104,6 +130,8 @@ export function AppSidebar({ onNavigate, className }: { onNavigate?: () => void;
           <Settings className="h-4 w-4" />
           Configurações
         </NavLink>
+          </>
+        )}
         {user?.email && (
           <p className="mt-3 truncate px-3 text-xs text-sidebar-custom-fg/60" title={user.email}>
             {user.email}

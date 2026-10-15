@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { acessoLiberado, calcularSituacao } from "@/lib/assinatura";
+import { acessoLiberado, calcularSituacao, planoCompleto } from "@/lib/assinatura";
 import { mensagensDoSistema } from "@/lib/mensagens";
-import { PLANOS } from "@/config/negocio";
+import { PLANOS, abaDoPlanoPago } from "@/config/negocio";
 
 const agora = new Date("2026-10-07T12:00:00Z");
 const dias = (n: number) => new Date(agora.getTime() + n * 86_400_000).toISOString();
@@ -73,5 +73,37 @@ describe("mensagens automáticas de renovação", () => {
     const [m] = mensagensDoSistema(s);
     expect(m.titulo).toBe("Sua assinatura venceu");
     expect(mensagensDoSistema(s, [m.id])[0].lida).toBe(true);
+  });
+});
+
+describe("abas liberadas por plano", () => {
+  const agora = new Date("2026-10-15T12:00:00Z");
+  const em = (dias: number) => new Date(agora.getTime() + dias * 86_400_000).toISOString();
+
+  it("teste grátis: usa o sistema, mas só as abas básicas", () => {
+    const s = calcularSituacao({ plano: "teste", teste_ate: em(3), pago_ate: null, admin: false }, agora);
+    expect(acessoLiberado(s)).toBe(true);
+    expect(planoCompleto(s)).toBe(false);
+  });
+
+  it("plano pago e conta da dona: tudo liberado", () => {
+    const pago = calcularSituacao({ plano: "mensal", teste_ate: em(-30), pago_ate: em(5), admin: false }, agora);
+    const dona = calcularSituacao({ plano: "vitalicio", teste_ate: em(-30), pago_ate: null, admin: true }, agora);
+    expect(planoCompleto(pago)).toBe(true);
+    expect(planoCompleto(dona)).toBe(true);
+  });
+
+  it("teste vencido: nada liberado (só a página Assinatura)", () => {
+    const s = calcularSituacao({ plano: "teste", teste_ate: em(-1), pago_ate: null, admin: false }, agora);
+    expect(acessoLiberado(s)).toBe(false);
+    expect(planoCompleto(s)).toBe(false);
+  });
+
+  it("identifica as abas dos planos pagos, inclusive subpáginas", () => {
+    expect(abaDoPlanoPago("/faturamento")?.nome).toBe("Faturamento");
+    expect(abaDoPlanoPago("/relatorios")).not.toBeNull();
+    expect(abaDoPlanoPago("/reprodutores/abc")).not.toBeNull();
+    expect(abaDoPlanoPago("/matrizes")).toBeNull();
+    expect(abaDoPlanoPago("/")).toBeNull();
   });
 });

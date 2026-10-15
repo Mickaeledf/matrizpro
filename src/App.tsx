@@ -25,6 +25,7 @@ const SuportePage = lazy(() => import("@/pages/SuportePage"));
 const AssinantesPage = lazy(() => import("@/pages/AssinantesPage"));
 const FaturamentoPage = lazy(() => import("@/pages/FaturamentoPage"));
 const MensagensPage = lazy(() => import("@/pages/MensagensPage"));
+const AssinaturaPage = lazy(() => import("@/pages/AssinaturaPage"));
 
 const queryClient = new QueryClient();
 
@@ -57,6 +58,7 @@ const App = () => (
               <Route path="/relatorios" element={<RelatoriosPage />} />
               <Route path="/reprodutores" element={<ReprodutoresPage />} />
               <Route path="/suporte" element={<SuportePage />} />
+              <Route path="/assinatura" element={<AssinaturaPage />} />
               <Route path="/assinantes" element={<AssinantesPage />} />
               <Route path="/configuracoes" element={<ConfiguracoesPage />} />
             </Route>

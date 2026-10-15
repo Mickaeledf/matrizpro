@@ -12,19 +12,23 @@ Quase tudo se altera num único arquivo: **`src/config/negocio.ts`**.
   Se a ideia for outra (ex.: pagar 6 meses = R$ 587,40 e ganhar o 7º mês), avise para ajustar.
   → valores em `src/config/negocio.ts`, objeto `PLANOS`.
 
-- [ ] **Forma de pagamento** (escolher uma): ☐ Mercado Pago ☐ Asaas ☐ Stripe ☐ PIX manual ☐ outra: ________
-  → criar **dois links** (mensal e semestral) e colar em `linksPagamento.mensal` e `linksPagamento.semestral` no mesmo arquivo.
-  Enquanto vazios, os botões mostram "Pagamento online em breve".
-  → **Hoje a liberação é manual:** quando o cliente pagar, entre em **Assinantes** e clique em **"Pagou mensal"** (+30 dias) ou **"Pagou semestral"** (+180 dias).
-  → Próximo passo (opcional): ligar o pagamento automático (o gateway avisa o sistema e libera sozinho).
+- [x] **Forma de pagamento: Mercado Pago** (PIX, cartão e boleto), com **liberação automática**.
+  O servidor (Edge Function `pagamentos`) confere cada pagamento direto no Mercado Pago — status aprovado e valor certo do plano — antes de liberar.
+  Os pagamentos aparecem em **Assinantes → Pagamentos online**. Os botões "Pagou mensal/semestral" continuam para pagamentos por fora (PIX direto etc.).
+- [ ] **⚠️ PARA LIGAR O PAGAMENTO — falta só você (3 passos, ~10 min):**
+  1. Supabase → Edge Functions → **pagamentos** → aba **Settings** → desligar **"Verify JWT with legacy secret"** → **Save changes**.
+  2. Mercado Pago → **Suas integrações** (mercadopago.com.br/developers/panel/app) → **Criar aplicação** ("Pagamentos online", produto **Checkout Pro**) → **Credenciais de produção** → copiar o **Access Token** (começa com `APP_USR-`).
+  3. Supabase → Edge Functions → **Secrets** → **Add new secret**: nome `MP_ACCESS_TOKEN`, valor = o Access Token. **Não mande esse código para ninguém** (nem para mim): ele dá acesso à sua conta do Mercado Pago.
+  Opcional (mais segurança): no Mercado Pago, em **Webhooks**, cadastrar a URL `https://txcglwflynguuazsjuya.supabase.co/functions/v1/pagamentos` com o evento **Pagamentos**, e colar a "assinatura secreta" no secret `MP_WEBHOOK_SECRET`.
+  Enquanto o token não estiver lá, o botão "Assinar" mostra "O pagamento online ainda não foi ativado".
 
 - [x] **Aviso de renovação:** 10 dias antes de vencer, na faixa do topo **e** na caixa de Mensagens, com os links dos dois planos (`diasAvisoRenovacao` em `src/config/negocio.ts`).
 - [x] **Caixa de mensagens:** só a administradora (Karen) envia, em **Mensagens → Enviar mensagem** (para todos ou para uma pessoa); os usuários só leem.
 
-- [ ] **Teste grátis:** está em **10 dias**. Se quiser mudar, ajuste nos dois lugares:
-  `diasTeste` em `src/config/negocio.ts` **e** o `interval '10 days'` em `supabase/migrations/002_reprodutores_e_assinaturas.sql` (rodar de novo no SQL Editor do Supabase).
+- [x] **Teste grátis: 7 dias, só com as abas básicas** (Painel, Matrizes, Lotes, Mensagens, Suporte, Configurações). Reprodutores, Faturamento, Análise e Relatórios aparecem com cadeado.
+  Para mudar: `diasTeste` e `ABAS_PLANO_PAGO` em `src/config/negocio.ts` **e** o `interval '7 days'` em `supabase/migrations/004_teste_7_dias_e_pagamentos.sql`.
 
-- [ ] **Quando a assinatura vence:** hoje o cliente **vê a tela de assinatura** e **não consegue gravar** nada, mas os dados ficam guardados. Confirmar se é isso mesmo ou se prefere outra regra (ex.: só leitura por X dias, apagar após X meses).
+- [x] **Quando o teste ou o plano vence:** o cliente vê **só a página Assinatura** (para pagar) e o banco bloqueia gravações. Os dados ficam guardados e voltam assim que o pagamento é confirmado.
 
 ## 📞 Suporte
 
@@ -44,7 +48,12 @@ Quase tudo se altera num único arquivo: **`src/config/negocio.ts`**.
   Opções: Resend, Brevo, Amazon SES, Gmail (Workspace). Configurar em Supabase → Authentication → Emails → SMTP Settings.
 - [ ] **Remetente e texto dos emails** (nome "MatrizPro", logo, português) em Supabase → Authentication → Emails → Templates.
 - [ ] **Email "Redefinir senha" em português:** o botão "Esqueci minha senha" já funciona, mas o email chega com o texto padrão em inglês do Supabase. Traduzir em Authentication → Emails → Templates → *Reset Password*. Ao publicar o site, o endereço novo precisa estar em **Redirect URLs** (senão o link de nova senha não abre).
-- [ ] **Domínio / endereço do site** (ex.: app.matrizpro.com.br) e **onde publicar** (Vercel, Netlify, Lovable).
+- [ ] **Colocar o site no ar — Vercel (grátis)** — o projeto já está pronto (`vercel.json`):
+  1. Entrar em vercel.com → **Sign Up** → **Continue with GitHub** (a mesma conta do repositório `Mickaeledf/matrizpro`).
+  2. **Add New → Project** → escolher `matrizpro` → **Deploy**. Em 2 minutos o site fica em `matrizpro.vercel.app` (ou parecido).
+  3. A cada `git push`, o site atualiza sozinho.
+  4. No Supabase → Authentication → **URL Configuration**: trocar o **Site URL** pelo endereço novo e adicionar `https://SEU-ENDERECO/**` em **Redirect URLs** (senão os links de confirmação e de nova senha não abrem).
+- [ ] **Domínio próprio** (ex.: `matrizpro.com.br`): registrar no **Registro.br** (~R$ 40/ano) e, na Vercel, **Settings → Domains → Add** — ela mostra os 2 registros para copiar no Registro.br. Depois, repetir o passo 4 acima com o domínio novo.
   Depois de publicar, adicionar o endereço em Supabase → Authentication → URL Configuration (Site URL e Redirect URLs).
 
 ## 📄 Jurídico / marca

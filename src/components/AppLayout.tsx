@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useState } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { Loader2, Menu } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { AppSidebar } from "./AppSidebar";
@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/auth";
 import { iniciarSincronizacao } from "@/lib/sincronizacao";
-import { acessoLiberado, useAssinatura } from "@/lib/assinatura";
+import { acessoLiberado, planoCompleto, useAssinatura } from "@/lib/assinatura";
+import { abaDoPlanoPago } from "@/config/negocio";
 import { useMensagens } from "@/lib/mensagens";
-import { FaixaAssinatura, TelaAssinaturaBloqueada } from "@/components/assinatura/AvisosAssinatura";
+import { FaixaAssinatura, TelaRecursoDoPlano } from "@/components/assinatura/AvisosAssinatura";
 
 const Carregando = ({ texto }: { texto: string }) => (
   <div className="flex flex-col items-center justify-center gap-3 py-16 text-sm text-muted-foreground">
@@ -48,8 +49,11 @@ export function AppLayout() {
     return () => clearInterval(t);
   }, [userId, situacao, carregarMensagens]);
 
-  // Com o acesso vencido, só Suporte e Mensagens continuam disponíveis
-  const bloqueado = !acessoLiberado(situacao) && pathname !== "/suporte" && pathname !== "/mensagens";
+  // Teste ou plano vencido (ou conta suspensa): só a página Assinatura fica disponível
+  const vencido = !acessoLiberado(situacao);
+  if (vencido && pathname !== "/assinatura") return <Navigate to="/assinatura" replace />;
+  // No teste grátis, as abas dos planos pagos mostram os planos no lugar do conteúdo
+  const abaPaga = !planoCompleto(situacao) ? abaDoPlanoPago(pathname) : null;
 
   return (
     <div className="flex h-screen flex-col overflow-hidden md:flex-row print:block print:h-auto print:overflow-visible">
@@ -80,8 +84,8 @@ export function AppLayout() {
       <div className="flex min-h-0 flex-1 flex-col print:block">
         <FaixaAssinatura situacao={situacao} />
         <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-6 lg:p-8 print:overflow-visible print:bg-white print:p-0">
-          {bloqueado ? (
-            <TelaAssinaturaBloqueada situacao={situacao} />
+          {abaPaga ? (
+            <TelaRecursoDoPlano rota={abaPaga.rota} />
           ) : dadosProntos ? (
             <Suspense fallback={<Carregando texto="Carregando…" />}>
               <Outlet />

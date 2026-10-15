@@ -7,7 +7,7 @@
       "itens": [
         "Na tela inicial, clique em \"Criar conta\", informe seu email e uma senha com pelo menos 8 caracteres, contendo letras e números.",
         "Abra o email de confirmação enviado pelo MatrizPro e clique no link. Sem essa confirmação não é possível entrar.",
-        "Todo novo cadastro tem 10 dias de teste grátis com acesso completo. Depois é preciso assinar: plano mensal (R$ 97,90) ou semestral (6 meses pelo preço de 5 — 1 mês grátis).",
+        "Todo novo cadastro tem 7 dias de teste grátis com as abas básicas: Painel, Matrizes, Lotes, Mensagens, Suporte e Configurações. Reprodutores, Faturamento, Análise e Relatórios aparecem com cadeado e são liberados ao assinar.",
         "Seus dados ficam salvos na nuvem e aparecem em qualquer computador ou celular ao entrar com sua conta. Na barra lateral, \"Salvo na nuvem\" indica que tudo foi gravado.",
         "Esqueceu a senha? Na tela de login, clique em \"Esqueci minha senha\", informe seu email e abra o link que chegar. Ele leva a uma tela para criar a nova senha (o link vale uma vez só e expira; se precisar, peça outro).",
         "Para trocar a senha estando conectado, vá em Configurações → Alterar senha."
@@ -80,8 +80,10 @@
     {
       "titulo": "9. Assinatura, mensagens e suporte",
       "itens": [
-        "Durante o teste grátis, uma faixa no topo mostra quantos dias faltam.",
-        "Planos: mensal R$ 97,90 ou semestral (6 meses pelo preço de 5). 10 dias antes de vencer, você recebe um aviso na faixa do topo e na caixa de Mensagens, já com os links de pagamento.",
+        "Durante o teste grátis, uma faixa no topo mostra quantos dias faltam. Quando o teste ou o plano vence, o sistema mostra só a página Assinatura até o pagamento ser confirmado — os seus dados continuam guardados.",
+        "Para assinar, abra Assinatura no menu e clique em \"Assinar mensal\" (R$ 97,90) ou \"Assinar semestral\" (6 meses pelo preço de 5). O pagamento é feito no Mercado Pago, por PIX, cartão ou boleto. Assim que o pagamento é confirmado, tudo é liberado sozinho.",
+        "PIX e cartão costumam confirmar em poucos minutos; boleto, em até 2 dias úteis. Na página Assinatura, \"Meus pagamentos\" mostra a situação de cada pagamento e tem o botão \"Verificar\".",
+        "10 dias antes de vencer, você recebe um aviso na faixa do topo e na caixa de Mensagens. Renovando antes, os dias que faltavam são somados.",
         "Se a assinatura vencer, os dados continuam guardados. Basta renovar para voltar a usar normalmente.",
         "Na aba Mensagens chegam os avisos da equipe MatrizPro. Ela é só para leitura; o número ao lado do menu mostra as não lidas.",
         "Dúvidas? Use a aba Suporte para falar conosco pelo WhatsApp."
@@ -92,6 +94,10 @@
     {
       "pergunta": "Perco meus dados se o teste acabar?",
       "resposta": "Não. Os dados continuam guardados na nuvem e voltam assim que a assinatura for ativada."
+    },
+    {
+      "pergunta": "Paguei e não liberou. E agora?",
+      "resposta": "Abra Assinatura → Meus pagamentos e clique em \"Verificar\". Boleto pode levar até 2 dias úteis. Se o pagamento aparecer como pago no Mercado Pago e mesmo assim não liberar, fale com o suporte."
     },
     {
       "pergunta": "Posso usar no celular?",

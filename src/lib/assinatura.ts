@@ -48,8 +48,13 @@ export function calcularSituacao(registro: RegistroAssinatura | null, agora = ne
   return { tipo: "expirada", motivo: pagoAte ? "mensalidade" : "teste" };
 }
 
+/** Pode usar o sistema (teste grátis ou plano em dia). */
 export const acessoLiberado = (s: SituacaoAssinatura) =>
   s.tipo === "vitalicio" || s.tipo === "teste" || s.tipo === "pago" || s.tipo === "carregando";
+
+/** Tem todas as abas liberadas (plano pago ou conta da dona). No teste, só as abas básicas. */
+export const planoCompleto = (s: SituacaoAssinatura) =>
+  s.tipo === "vitalicio" || s.tipo === "pago" || s.tipo === "carregando";
 
 interface EstadoAssinatura {
   situacao: SituacaoAssinatura;

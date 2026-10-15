@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useAssinatura } from "@/lib/assinatura";
 import { NEGOCIO, PLANOS, linkWhatsapp } from "@/config/negocio";
-import { PlanosAssinatura } from "@/components/assinatura/PlanosAssinatura";
+import { Link } from "react-router-dom";
 import manual from "@/content/manual.json";
 
 const fmt = (d: Date) => d.toLocaleDateString("pt-BR");
@@ -83,23 +83,15 @@ export default function SuportePage() {
             </div>
             <p className="flex-1 text-sm text-foreground">{textoAssinatura}</p>
             {situacao.tipo !== "vitalicio" && (
-              <p className="mt-2 text-xs text-muted-foreground">
-                Planos: mensal {PLANOS.mensal.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} ou semestral com 1 mês
-                grátis (abaixo).
-              </p>
+              <Button asChild variant="outline" className="mt-4 gap-2">
+                <Link to="/assinatura">
+                  <CreditCard className="h-4 w-4" /> Ver planos e pagamentos
+                </Link>
+              </Button>
             )}
           </CardContent>
         </Card>
       </div>
-
-      {situacao.tipo !== "vitalicio" && (
-        <Card className="border border-border">
-          <CardContent className="p-4 sm:p-6">
-            <h2 className="mb-4 text-lg font-bold text-foreground">Planos</h2>
-            <PlanosAssinatura />
-          </CardContent>
-        </Card>
-      )}
 
       <Card className="border border-border">
         <CardContent className="p-4 sm:p-6">
