@@ -1,6 +1,6 @@
 import { FormEvent, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
-import { AlertCircle, Check, Eye, EyeOff, Loader2, MailCheck, X } from "lucide-react";
+import { AlertCircle, ArrowLeft, Check, Eye, EyeOff, Loader2, MailCheck, X } from "lucide-react";
 import { useAuth } from "@/contexts/auth";
 import { supabaseConfigurado } from "@/lib/supabase";
 import { REGRAS_SENHA, validarEmail, validarSenha } from "@/lib/authValidacao";
@@ -423,6 +423,13 @@ export default function LoginPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Página de vendas (estática, fora do app: link comum, não do router) */}
+          <Button asChild variant="outline" className="mt-4 w-full gap-2">
+            <a href="/inicio">
+              <ArrowLeft className="h-4 w-4" /> Conhecer o MatrizPro
+            </a>
+          </Button>
         </div>
       </main>
     </div>

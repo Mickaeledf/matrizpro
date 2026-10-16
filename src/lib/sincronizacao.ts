@@ -212,11 +212,12 @@ export function iniciarSincronizacao(userId: string, aoCarregar: () => void) {
       if (remoto) {
         // A nuvem é a fonte da verdade
         useStore.getState().importarDados(remoto);
-      } else if (donoLocal && donoLocal !== userId) {
-        // Dados locais são de outra conta: não podem ir para esta
+      } else if (donoLocal !== userId) {
+        // Dados locais de outra conta (ou sem dono conhecido): nunca vão para esta.
+        // Cada cadastro começa só com os próprios dados.
         useStore.getState().resetarDados();
       } else {
-        // Primeira vez desta conta: envia o que já existia neste navegador
+        // Conta sem nada na nuvem ainda: envia o que ESTA conta já registrou neste navegador
         const local = dadosAtuais();
         const mudancas = calcularMudancas({ matrizes: [], reprodutores: [], lotes: [], configuracoes: CONFIG_PADRAO }, local);
         if (!semMudancas(mudancas)) await enviarMudancas(userId, mudancas, local);
@@ -227,7 +228,7 @@ export function iniciarSincronizacao(userId: string, aoCarregar: () => void) {
     } catch (e) {
       if (!ativo) return;
       // Sem conexão: usa o cache local apenas se ele for desta conta
-      if (donoLocal && donoLocal !== userId) useStore.getState().resetarDados();
+      if (donoLocal !== userId) useStore.getState().resetarDados();
       snapshot = dadosAtuais();
       definirStatus("erro", `Não foi possível carregar os dados da nuvem: ${mensagemErro(e)}`);
     }

@@ -97,7 +97,8 @@ describe("calcularMudancas", () => {
 });
 
 describe("iniciarSincronizacao", () => {
-  it("na primeira vez da conta, envia os dados que já existiam no navegador", async () => {
+  it("envia para a nuvem o que a própria conta registrou neste navegador", async () => {
+    localStorage.setItem("matrizpro-dono", "user-a");
     estado().addLote({ nome: "L1", matrizId: "", dataParto: "2026-10-01", nascidosVivos: 10, nascidosMortos: 0, status: "Ativo" });
     const pronto = vi.fn();
     iniciarSincronizacao("user-a", pronto);
@@ -107,6 +108,16 @@ describe("iniciarSincronizacao", () => {
     expect(banco.lotes).toHaveLength(1);
     expect(banco.lotes[0]).toMatchObject({ user_id: "user-a", nome: "L1" });
     expect(lerDonoLocal()).toBe("user-a");
+  });
+
+  it("conta nova não herda dados locais sem dono conhecido", async () => {
+    estado().addLote({ nome: "SEM-DONO", matrizId: "", dataParto: "2026-10-01", nascidosVivos: 10, nascidosMortos: 0, status: "Ativo" });
+    iniciarSincronizacao("user-nova", () => {});
+    await esperar(20);
+
+    expect(banco.lotes).toHaveLength(0);
+    expect(estado().lotes).toHaveLength(0);
+    expect(lerDonoLocal()).toBe("user-nova");
   });
 
   it("baixa os dados da nuvem e grava alterações automaticamente", async () => {

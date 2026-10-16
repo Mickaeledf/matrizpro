@@ -25,21 +25,25 @@ export interface Mensagem {
   mostrarPlanos?: boolean;
 }
 
-const CHAVE_LIDAS_SISTEMA = "matrizpro-mensagens-sistema-lidas";
+/** Separado por usuário: em um navegador compartilhado, o que um lê não marca para o outro. */
+async function chaveLidasSistema() {
+  const { data } = await supabase.auth.getSession();
+  return `matrizpro-mensagens-sistema-lidas-${data.session?.user.id ?? "anonimo"}`;
+}
 
-function lidasDoSistema(): string[] {
+function lidasDoSistema(chave: string): string[] {
   try {
-    return JSON.parse(localStorage.getItem(CHAVE_LIDAS_SISTEMA) ?? "[]");
+    return JSON.parse(localStorage.getItem(chave) ?? "[]");
   } catch {
     return [];
   }
 }
 
-function marcarLidaSistema(id: string) {
+function marcarLidaSistema(chave: string, id: string) {
   try {
-    const atuais = new Set(lidasDoSistema());
+    const atuais = new Set(lidasDoSistema(chave));
     atuais.add(id);
-    localStorage.setItem(CHAVE_LIDAS_SISTEMA, JSON.stringify([...atuais].slice(-50)));
+    localStorage.setItem(chave, JSON.stringify([...atuais].slice(-50)));
   } catch {
     // armazenamento indisponível
   }
@@ -109,7 +113,7 @@ export const useMensagens = create<EstadoMensagens>((set, get) => ({
     const erro = msgs.error ?? lidas.error;
     const idsLidas = new Set((lidas.data ?? []).map((l) => l.mensagem_id as string));
     const doBanco: Mensagem[] = (msgs.data ?? []).map((m) => ({ ...m, lida: idsLidas.has(m.id) }));
-    const todas = [...mensagensDoSistema(situacao, lidasDoSistema()), ...doBanco].sort((a, b) =>
+    const todas = [...mensagensDoSistema(situacao, lidasDoSistema(await chaveLidasSistema())), ...doBanco].sort((a, b) =>
       b.criado_em.localeCompare(a.criado_em)
     );
     set({ mensagens: todas, carregando: false, erro: erro ? erro.message : null });
@@ -119,7 +123,7 @@ export const useMensagens = create<EstadoMensagens>((set, get) => ({
     const m = get().mensagens.find((x) => x.id === id);
     if (!m || m.lida) return;
     set({ mensagens: get().mensagens.map((x) => (x.id === id ? { ...x, lida: true } : x)) });
-    if (m.sistema) marcarLidaSistema(id);
+    if (m.sistema) marcarLidaSistema(await chaveLidasSistema(), id);
     else await supabase.from("mensagens_lidas").insert({ mensagem_id: id });
   },
 

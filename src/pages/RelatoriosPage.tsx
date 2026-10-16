@@ -1,5 +1,6 @@
 import { ReactNode, useMemo, useState } from "react";
-import { BarChart3, Download, FileText, Layers, Printer, Wallet } from "lucide-react";
+import { BarChart3, Download, FileText, Layers, Loader2, Printer, Wallet } from "lucide-react";
+import { toast } from "sonner";
 import { useStore } from "@/store/useStore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { Lote } from "@/types";
 import { formatarData, formatarMoeda, formatarNumero, hojeISO } from "@/lib/date";
 import { estatisticasLote } from "@/utils/metricas";
 import { gerarAlertasDinamicos } from "@/utils/alertGenerator";
+import { PlanilhaRelatorio, exportarExcel } from "@/lib/exportarExcel";
 import { agruparVendas, faturamentoPorMes, listarVendidos, resumirFaturamento } from "@/utils/faturamento";
 
 type TipoRelatorio = "geral" | "lote" | "financeiro" | "faturamento";
@@ -64,18 +66,6 @@ const Indicadores = ({ itens }: { itens: { l: string; v: ReactNode }[] }) => (
   </div>
 );
 
-function baixarCSV(nome: string, linhas: (string | number)[][]) {
-  const conteudo = linhas.map((linha) => linha.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\r\n");
-  // BOM para o Excel reconhecer acentos
-  const blob = new Blob(["﻿" + conteudo], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = nome;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 export default function RelatoriosPage() {
   const { matrizes, reprodutores, lotes, configuracoes } = useStore();
   const [tipo, setTipo] = useState<TipoRelatorio>("geral");
@@ -111,44 +101,103 @@ export default function RelatoriosPage() {
     setSecoes(["resumo"]);
   };
 
-  const exportarCSV = () => {
+  const sufixoAno = ano === "todos" ? "" : ` — ${ano}`;
+  const titulos: Record<TipoRelatorio, string> = {
+    geral: `Relatório Geral do Plantel${sufixoAno}`,
+    lote: `Relatório do Lote ${loteSelecionado?.nome ?? ""}`,
+    financeiro: `Relatório de Custos${sufixoAno}`,
+    faturamento: `Relatório de Faturamento${sufixoAno}`,
+  };
+
+  const [exportando, setExportando] = useState(false);
+
+  /** Planilha Excel com a mesma identidade do PDF (logo, fazenda, título, emissão). */
+  const exportarExcelRelatorio = async () => {
+    const base = {
+      titulo: titulos[tipo],
+      fazenda: configuracoes.nomeFazenda,
+      responsavel: configuracoes.responsavel,
+      cidade: configuracoes.cidade,
+      emitidoEm: formatarData(hojeISO()),
+    };
+    let planilha: PlanilhaRelatorio;
     if (tipo === "lote" && loteSelecionado) {
-      baixarCSV(`lote-${loteSelecionado.nome}-${hojeISO()}.csv`, [
-        ["Leitão", "Sexo", "Peso nascimento (kg)", "Peso atual (kg)", "Situação", "Saúde", "Venda (R$)"],
-        ...loteSelecionado.leitoes.map((lt) => [
+      planilha = {
+        ...base,
+        nomeArquivo: `lote-${loteSelecionado.nome}-${hojeISO()}`,
+        colunas: [
+          { titulo: "Leitão" },
+          { titulo: "Sexo" },
+          { titulo: "Peso nascimento (kg)", formato: "decimal" },
+          { titulo: "Peso atual (kg)", formato: "decimal" },
+          { titulo: "Situação" },
+          { titulo: "Saúde" },
+          { titulo: "Venda (R$)", formato: "moeda" },
+        ],
+        linhas: loteSelecionado.leitoes.map((lt) => [
           lt.identificador,
           lt.sexo,
-          formatarNumero(lt.pesoNascimento, 2),
-          formatarNumero(lt.pesoAtual, 2),
+          lt.pesoNascimento,
+          lt.pesoAtual,
           lt.status,
           lt.statusSaude,
-          lt.venda ? formatarNumero(lt.venda.valor, 2) : "",
+          lt.venda ? lt.venda.valor : null,
         ]),
-      ]);
+      };
     } else if (tipo === "financeiro") {
-      baixarCSV(`custos-${hojeISO()}.csv`, [
-        ["Lote", "Data", "Tipo", "Categoria", "Descrição", "Valor (R$)"],
-        ...lotesAno.flatMap((l) =>
-          l.lancamentos.map((x) => [l.nome, formatarData(x.data), x.tipo, x.categoria, x.descricao, formatarNumero(x.valor, 2)])
-        ),
-      ]);
+      planilha = {
+        ...base,
+        nomeArquivo: `custos-${hojeISO()}`,
+        colunas: [
+          { titulo: "Lote" },
+          { titulo: "Data", formato: "data" },
+          { titulo: "Tipo" },
+          { titulo: "Categoria" },
+          { titulo: "Descrição", largura: 36 },
+          { titulo: "Valor (R$)", formato: "moeda" },
+        ],
+        linhas: lotesAno.flatMap((l) => l.lancamentos.map((x) => [l.nome, formatarData(x.data), x.tipo, x.categoria, x.descricao, x.valor])),
+      };
     } else if (tipo === "faturamento") {
-      baixarCSV(`faturamento-${hojeISO()}.csv`, [
-        ["Data", "Tipo", "Animal", "Lote", "Peso (kg)", "Comprador", "Valor (R$)"],
-        ...vendidos.map((i) => [
+      planilha = {
+        ...base,
+        nomeArquivo: `faturamento-${hojeISO()}`,
+        colunas: [
+          { titulo: "Data", formato: "data" },
+          { titulo: "Tipo" },
+          { titulo: "Animal" },
+          { titulo: "Lote" },
+          { titulo: "Peso (kg)", formato: "decimal" },
+          { titulo: "Comprador", largura: 28 },
+          { titulo: "Valor (R$)", formato: "moeda" },
+        ],
+        linhas: vendidos.map((i) => [
           formatarData(i.data),
           i.tipo === "leitao" ? "Leitão" : i.tipo === "matriz" ? "Matriz" : "Reprodutor",
           i.animal,
           i.loteNome ?? "",
-          i.pesoKg ? formatarNumero(i.pesoKg, 2) : "",
+          i.pesoKg ?? null,
           i.comprador ?? "",
-          formatarNumero(i.valor, 2),
+          i.valor,
         ]),
-      ]);
+      };
     } else {
-      baixarCSV(`plantel-${hojeISO()}.csv`, [
-        ["Lote", "Matriz", "Parto", "Status", "Nascidos vivos", "Nascidos mortos", "Ativos", "Peso médio (kg)", "GPD (g/dia)", "Mortalidade (%)"],
-        ...linhas.map(({ lote, est }) => [
+      planilha = {
+        ...base,
+        nomeArquivo: `plantel-${hojeISO()}`,
+        colunas: [
+          { titulo: "Lote" },
+          { titulo: "Matriz" },
+          { titulo: "Parto", formato: "data" },
+          { titulo: "Status" },
+          { titulo: "Nascidos vivos", formato: "inteiro" },
+          { titulo: "Nascidos mortos", formato: "inteiro" },
+          { titulo: "Ativos", formato: "inteiro" },
+          { titulo: "Peso médio (kg)", formato: "decimal" },
+          { titulo: "GPD (g/dia)", formato: "inteiro" },
+          { titulo: "Mortalidade (%)", formato: "decimal" },
+        ],
+        linhas: linhas.map(({ lote, est }) => [
           lote.nome,
           nomeMatriz(lote.matrizId),
           formatarData(lote.dataParto),
@@ -156,20 +205,21 @@ export default function RelatoriosPage() {
           lote.nascidosVivos,
           lote.nascidosMortos,
           est.ativos,
-          formatarNumero(est.pesoMedio, 2),
-          est.gpdMedio !== null ? Math.round(est.gpdMedio * 1000) : "",
-          formatarNumero(est.mortalidadePercent),
+          est.pesoMedio,
+          est.gpdMedio !== null ? Math.round(est.gpdMedio * 1000) : null,
+          est.mortalidadePercent,
         ]),
-      ]);
+      };
     }
-  };
-
-  const sufixoAno = ano === "todos" ? "" : ` — ${ano}`;
-  const titulos: Record<TipoRelatorio, string> = {
-    geral: `Relatório Geral do Plantel${sufixoAno}`,
-    lote: `Relatório do Lote ${loteSelecionado?.nome ?? ""}`,
-    financeiro: `Relatório de Custos${sufixoAno}`,
-    faturamento: `Relatório de Faturamento${sufixoAno}`,
+    setExportando(true);
+    try {
+      await exportarExcel(planilha);
+    } catch (e) {
+      console.error(e);
+      toast.error("Não foi possível gerar a planilha. Tente novamente.");
+    } finally {
+      setExportando(false);
+    }
   };
 
   const semDados = lotes.length === 0 && matrizes.length === 0;
@@ -181,8 +231,8 @@ export default function RelatoriosPage() {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-4 print:hidden">
         <h1 className="text-2xl font-bold text-foreground">Relatórios</h1>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" className="gap-2" onClick={exportarCSV} disabled={semDados}>
-            <Download className="h-4 w-4" /> CSV (Excel)
+          <Button variant="outline" className="gap-2" onClick={exportarExcelRelatorio} disabled={semDados || exportando}>
+            {exportando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Baixar Excel
           </Button>
           <Button className="gap-2" onClick={() => window.print()} disabled={semDados}>
             <Printer className="h-4 w-4" /> Gerar PDF
@@ -291,7 +341,7 @@ export default function RelatoriosPage() {
             </p>
             <header className="mb-4 flex flex-wrap items-end justify-between gap-2 border-b-2 border-primary pb-3">
               <div className="flex items-center gap-3">
-                <img src="/logo-verde.png" alt="" className="h-12 w-12" />
+                <img src="/logo-relatorio.png" alt="" className="h-12 w-12" />
                 <div>
                   <p className="text-sm font-semibold text-primary">
                     MatrizPro{configuracoes.nomeFazenda && ` · ${configuracoes.nomeFazenda}`}
