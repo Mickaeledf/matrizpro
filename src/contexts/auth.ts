@@ -8,12 +8,13 @@ export interface AuthContextValue {
   /** true enquanto verifica se já existe sessão salva ao abrir a página. */
   carregando: boolean;
   /** Retorna uma mensagem de erro amigável, ou null em caso de sucesso. */
-  entrar: (email: string, senha: string) => Promise<string | null>;
+  entrar: (email: string, senha: string, captcha?: string | null) => Promise<string | null>;
   /** Retorna erro, ou indica se é preciso confirmar o email. */
-  cadastrar: (email: string, senha: string) => Promise<{ erro: string | null; precisaConfirmar: boolean }>;
-  reenviarConfirmacao: (email: string) => Promise<string | null>;
+  /** Cria a conta; registra no cadastro a versão dos Termos/Privacidade aceita. */
+  cadastrar: (email: string, senha: string, captcha?: string | null) => Promise<{ erro: string | null; precisaConfirmar: boolean }>;
+  reenviarConfirmacao: (email: string, captcha?: string | null) => Promise<string | null>;
   /** Envia o email com o link para criar uma nova senha ("Esqueci minha senha"). */
-  enviarLinkRedefinicao: (email: string) => Promise<string | null>;
+  enviarLinkRedefinicao: (email: string, captcha?: string | null) => Promise<string | null>;
   /** Grava a nova senha do usuário logado (ou que chegou pelo link de redefinição). */
   definirNovaSenha: (senha: string) => Promise<string | null>;
   /** true quando o usuário chegou pelo link de redefinição de senha do email. */

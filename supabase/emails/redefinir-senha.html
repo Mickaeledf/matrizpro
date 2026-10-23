@@ -1,0 +1,18 @@
+<!-- Supabase → Authentication → Emails → Templates → "Reset password"
+     Assunto: Crie uma nova senha no MatrizPro -->
+<div style="font-family:Arial,Helvetica,sans-serif;background:#f4f6f5;padding:24px">
+  <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
+    <div style="background:#1f4d3a;padding:20px 24px">
+      <img src="https://matrizpro.vercel.app/logo-relatorio.png" width="40" height="40" alt="" style="vertical-align:middle;background:#ffffff;border-radius:50%">
+      <span style="color:#ffffff;font-size:20px;font-weight:bold;vertical-align:middle;margin-left:8px">MatrizPro</span>
+    </div>
+    <div style="padding:28px 24px;color:#111827">
+      <h1 style="font-size:20px;margin:0 0 12px">Crie uma nova senha</h1>
+      <p style="font-size:15px;line-height:1.5;margin:0 0 20px">Recebemos um pedido para trocar a senha da sua conta. Clique no botão abaixo para criar a nova senha:</p>
+      <p style="text-align:center;margin:0 0 24px">
+        <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#1f4d3a;color:#ffffff;text-decoration:none;font-weight:bold;padding:14px 28px;border-radius:8px">Criar nova senha</a>
+      </p>
+      <p style="font-size:13px;color:#6b7280;line-height:1.5;margin:0">O link vale por pouco tempo e só pode ser usado uma vez. Se não foi você que pediu, ignore este email — sua senha continua a mesma.</p>
+    </div>
+  </div>
+</div>

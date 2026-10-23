@@ -1,5 +1,7 @@
 import { FormEvent, useState } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Captcha, captchaAtivo } from "@/components/Captcha";
 import { AlertCircle, ArrowLeft, Check, Eye, EyeOff, Loader2, MailCheck, X } from "lucide-react";
 import { useAuth } from "@/contexts/auth";
 import { supabaseConfigurado } from "@/lib/supabase";
@@ -14,7 +16,7 @@ import { cn } from "@/lib/utils";
 import { Logo } from "@/components/Logo";
 
 type Modo = "entrar" | "cadastrar";
-type Erros = Partial<Record<"email" | "senha" | "confirmacao", string>>;
+type Erros = Partial<Record<"email" | "senha" | "confirmacao" | "termos", string>>;
 
 /** Campo de senha com botão de mostrar/ocultar. */
 function CampoSenha({
@@ -70,6 +72,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [confirmacao, setConfirmacao] = useState("");
+  const [aceitouTermos, setAceitouTermos] = useState(false);
   const [erros, setErros] = useState<Erros>({});
   const [erroGeral, setErroGeral] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -80,6 +83,22 @@ export default function LoginPage() {
   // "Esqueci minha senha": formulário de recuperação e email para onde o link foi enviado
   const [recuperando, setRecuperando] = useState(new URLSearchParams(location.search).get("modo") === "recuperar");
   const [linkEnviadoPara, setLinkEnviadoPara] = useState<string | null>(null);
+  // Anti-robô: cada token vale para uma tentativa; depois a caixa é recriada (versão + 1)
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const [versaoCaptcha, setVersaoCaptcha] = useState(0);
+  // Se a verificação não carregar (navegador antigo, bloqueador), deixa tentar: quem decide é o Supabase
+  const [captchaFalhou, setCaptchaFalhou] = useState(false);
+  const captchaPendente = () => {
+    if (!captchaAtivo || captcha || captchaFalhou) return false;
+    setErroGeral("Aguarde a verificação anti-robô terminar e tente de novo.");
+    return true;
+  };
+  const gastarCaptcha = () => {
+    const t = captcha;
+    setCaptcha(null);
+    setVersaoCaptcha((v) => v + 1);
+    return t;
+  };
 
   // Já logado (ex.: sessão salva ou voltou pelo link de confirmação): vai direto para o app
   if (!carregando && session) return <Navigate to={destino} replace />;
@@ -101,9 +120,9 @@ export default function LoginPage() {
     setErroGeral(null);
     const erroEmail = validarEmail(email);
     setErros(erroEmail ? { email: erroEmail } : {});
-    if (erroEmail) return;
+    if (erroEmail || captchaPendente()) return;
     setEnviando(true);
-    const erro = await enviarLinkRedefinicao(email);
+    const erro = await enviarLinkRedefinicao(email, gastarCaptcha());
     setEnviando(false);
     if (erro) setErroGeral(erro);
     else setLinkEnviadoPara(email.trim());
@@ -122,6 +141,7 @@ export default function LoginPage() {
       if (erroSenha) novos.senha = erroSenha;
       if (!confirmacao) novos.confirmacao = "Confirme a senha.";
       else if (confirmacao !== senha) novos.confirmacao = "As senhas não coincidem.";
+      if (!aceitouTermos) novos.termos = "Para criar a conta, aceite os Termos de Uso e a Política de Privacidade.";
     }
 
     setErros(novos);
@@ -133,12 +153,12 @@ export default function LoginPage() {
     setErroGeral(null);
     setAvisoReenvio(null);
     setPodeReenviar(false);
-    if (!validarFormulario()) return;
+    if (!validarFormulario() || captchaPendente()) return;
 
     setEnviando(true);
     try {
       if (modo === "entrar") {
-        const erro = await entrar(email, senha);
+        const erro = await entrar(email, senha, gastarCaptcha());
         if (erro) {
           setErroGeral(erro);
           // Se o email não foi confirmado, oferece reenviar o link
@@ -147,7 +167,7 @@ export default function LoginPage() {
           navigate(destino, { replace: true });
         }
       } else {
-        const { erro, precisaConfirmar } = await cadastrar(email, senha);
+        const { erro, precisaConfirmar } = await cadastrar(email, senha, gastarCaptcha());
         if (erro) setErroGeral(erro);
         else if (precisaConfirmar) setEmailPendente(email.trim());
       }
@@ -159,8 +179,9 @@ export default function LoginPage() {
   };
 
   const reenviar = async (alvo: string) => {
+    if (captchaPendente()) return;
     setEnviando(true);
-    const erro = await reenviarConfirmacao(alvo);
+    const erro = await reenviarConfirmacao(alvo, gastarCaptcha());
     setEnviando(false);
     setAvisoReenvio(erro ?? "Enviamos um novo link de confirmação. Verifique sua caixa de entrada e o spam.");
   };
@@ -249,6 +270,7 @@ export default function LoginPage() {
                         />
                         {erros.email && <p className="text-xs text-destructive">{erros.email}</p>}
                       </div>
+                      <Captcha key={`recuperar-${versaoCaptcha}`} onToken={setCaptcha} onErro={() => setCaptchaFalhou(true)} />
                       <Button type="submit" className="w-full" disabled={enviando || !supabaseConfigurado}>
                         {enviando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {enviando ? "Enviando..." : "Enviar link de redefinição"}
@@ -282,6 +304,7 @@ export default function LoginPage() {
                     >
                       Ir para o login
                     </Button>
+                    <Captcha key={`reenviar-${versaoCaptcha}`} onToken={setCaptcha} onErro={() => setCaptchaFalhou(true)} />
                     <Button variant="ghost" disabled={enviando} onClick={() => reenviar(emailPendente)}>
                       {enviando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Não recebeu? Reenviar email
@@ -394,9 +417,33 @@ export default function LoginPage() {
                           erro={erros.confirmacao}
                           autoComplete="new-password"
                         />
+                        <div className="space-y-1">
+                          <div className="flex items-start gap-2">
+                            <Checkbox
+                              id="aceite-termos"
+                              checked={aceitouTermos}
+                              onCheckedChange={(v) => setAceitouTermos(v === true)}
+                              aria-invalid={!!erros.termos}
+                              className="mt-0.5"
+                            />
+                            <label htmlFor="aceite-termos" className="text-sm leading-snug text-muted-foreground">
+                              Li e aceito os{" "}
+                              <Link to="/termos" target="_blank" className="font-medium text-primary hover:underline">
+                                Termos de Uso
+                              </Link>{" "}
+                              e a{" "}
+                              <Link to="/privacidade" target="_blank" className="font-medium text-primary hover:underline">
+                                Política de Privacidade
+                              </Link>
+                              .
+                            </label>
+                          </div>
+                          {erros.termos && <p className="text-xs text-destructive">{erros.termos}</p>}
+                        </div>
                       </>
                     )}
 
+                    <Captcha key={`${modo}-${versaoCaptcha}`} onToken={setCaptcha} onErro={() => setCaptchaFalhou(true)} />
                     <Button type="submit" className="w-full" disabled={enviando || !supabaseConfigurado}>
                       {enviando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       {enviando
@@ -423,6 +470,16 @@ export default function LoginPage() {
               )}
             </CardContent>
           </Card>
+
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            <Link to="/termos" className="hover:underline">
+              Termos de Uso
+            </Link>
+            {" · "}
+            <Link to="/privacidade" className="hover:underline">
+              Política de Privacidade
+            </Link>
+          </p>
 
           {/* Página de vendas (estática, fora do app: link comum, não do router) */}
           <Button asChild variant="outline" className="mt-4 w-full gap-2">

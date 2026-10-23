@@ -5,6 +5,28 @@ Quase tudo se altera num único arquivo: **`src/config/negocio.ts`**.
 
 ---
 
+## 🚦 ANTES DE VENDER (checklist)
+
+- [x] Cada cadastro só vê e mexe nos próprios dados — testado no banco real (18/18). Para repetir o teste: colar `supabase/testes/teste_isolamento.sql` no SQL Editor e rodar (não grava nada; o resultado aparece como "erro" com o relatório).
+- [x] Alterações feitas sem internet ficam guardadas no aparelho e sobem quando a internet volta; aviso ao fechar/sair com algo não enviado.
+- [ ] **🔴 Email próprio (SMTP) — OBRIGATÓRIO para vender.** O email grátis do Supabase só entrega para a equipe do projeto: clientes **não recebem** o email de confirmação e **não conseguem entrar** (já aconteceu: cadastro de 15/10 nunca confirmado).
+  Escolhido: **Gmail** (`social.mediacreative.br@gmail.com`, até 500 emails/dia; Resend exige domínio próprio). Já preenchido no Supabase (Authentication → Emails → SMTP Settings): remetente, nome "MatrizPro", `smtp.gmail.com`, porta 465, usuário. **Falta a Karen:**
+  1. Entrar no Google com `social.mediacreative.br@gmail.com` → ativar a **Verificação em duas etapas** → abrir **myaccount.google.com/apppasswords** → criar a senha de app "MatrizPro" → copiar o código de 16 letras.
+  2. Colar no campo **Password** do SMTP no Supabase → **Save changes**. (Não mandar o código para ninguém.)
+  3. Avisar o Claude: ele coloca os emails em português (modelos prontos em `supabase/emails/`).
+- [x] **Termos de Uso e Política de Privacidade** publicados em `/termos` e `/privacidade`, com "Li e aceito" obrigatório no cadastro (a versão aceita fica gravada na conta). Texto em `src/content/legal.ts` — modelo inicial, ideal revisar com advogado(a).
+- [ ] **Anti-robô (Cloudflare Turnstile)** — widget "MatrizPro" criado (site key `0x4AAAAAAFh4vCaWjP8zzYg6`, domínios matrizpro.vercel.app, localhost, 127.0.0.1) e já no código (`src/components/Captcha.tsx`). **Ordem obrigatória:**
+  1. Publicar o site com o código novo (git push).
+  2. **Só depois:** Supabase → Authentication → **Attack Protection** → Enable Captcha → **Turnstile** → colar a **Secret Key** (Cloudflare → Turnstile → MatrizPro → Settings; secreta, não mandar para ninguém) → Save.
+  ⚠️ Se ligar no Supabase antes do passo 1, ninguém consegue entrar.
+- [ ] **Supabase Pro (US$ 25/mês)** quando entrar o primeiro cliente pagante: backup diário automático e o projeto **não "dorme"** (no plano grátis ele pausa após 7 dias sem uso e não tem backup).
+- [ ] **Proteção contra senhas vazadas** e **CAPTCHA** no cadastro (Authentication → Attack Protection) — evita robôs criando contas.
+- [ ] Testar a conexão da SyncPay (Assinantes → "Testar conexão com a SyncPay") e fazer **um PIX real de R$ 97,90** com um CPF seu para ver a liberação automática de ponta a ponta.
+- [ ] **Teste de 2 pessoas** (manual, 10 min): criar 2 contas com emails diferentes, cadastrar 1 matriz em cada, entrar e sair no mesmo navegador e no celular, e conferir que uma nunca vê a da outra.
+- [x] Termos de uso e política de privacidade (LGPD) publicados e com link no cadastro (ver acima).
+
+---
+
 ## 💰 Assinatura
 
 - [x] **Plano mensal:** R$ 97,90 (30 dias).
@@ -56,7 +78,7 @@ Quase tudo se altera num único arquivo: **`src/config/negocio.ts`**.
 
 ## 📄 Jurídico / marca
 
-- [ ] Termos de uso e política de privacidade (LGPD) — exigidos para cobrar assinatura.
+- [x] Termos de uso e política de privacidade (LGPD) — em `/termos` e `/privacidade`.
 - [x] Logo: aplicada no menu, login, relatórios, manual em PDF e ícone do navegador (arquivos em `public/logo-*.png`).
 - [ ] Cores definitivas (hoje: verde do MatrizPro).
 - [ ] Nome da empresa/CNPJ para aparecer nos relatórios e recibos.

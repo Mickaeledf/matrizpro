@@ -42,6 +42,9 @@ export function traduzirErroAuth(erro: AuthError | Error | null | undefined): st
   if (codigo === "user_already_exists" || codigo === "email_exists" || mensagem.includes("already registered")) {
     return "Este email já está cadastrado. Faça login ou use outro email.";
   }
+  if (codigo === "captcha_failed" || mensagem.includes("captcha")) {
+    return "A verificação anti-robô falhou ou expirou. Aguarde a caixa de verificação e tente de novo.";
+  }
   if (codigo === "same_password") {
     return "A nova senha precisa ser diferente da senha atual.";
   }

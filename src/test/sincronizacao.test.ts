@@ -5,6 +5,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // ---------------------------------------------------------------------------
 type Linha = Record<string, unknown>;
 const banco: Record<string, Linha[]> = { matrizes: [], reprodutores: [], lotes: [], configuracoes: [] };
+/** Simula aparelho sem internet: toda operação no banco falha. */
+let semInternet = false;
+const FALHA = { data: null, error: { message: "Failed to fetch" } };
 
 function consulta(tabela: string) {
   let filtroIds: string[] | null = null;
@@ -13,6 +16,7 @@ function consulta(tabela: string) {
   let faixa: [number, number] | null = null;
 
   const executar = () => {
+    if (semInternet) return FALHA;
     if (operacao === "delete") {
       banco[tabela] = banco[tabela].filter((l) => !filtroIds?.includes(l.id as string));
       return { data: null, error: null };
@@ -43,6 +47,7 @@ function consulta(tabela: string) {
       return builder;
     },
     upsert: (linhas: Linha | Linha[]) => {
+      if (semInternet) return Promise.resolve(FALHA);
       const lista = Array.isArray(linhas) ? linhas : [linhas];
       for (const linha of lista) {
         const chave = tabela === "configuracoes" ? "user_id" : "id";
@@ -60,7 +65,14 @@ vi.mock("@/lib/supabase", () => ({
   supabaseConfigurado: true,
 }));
 
-import { calcularMudancas, encerrarSincronizacao, iniciarSincronizacao, lerDonoLocal } from "@/lib/sincronizacao";
+import {
+  calcularMudancas,
+  encerrarSincronizacao,
+  iniciarSincronizacao,
+  lerDonoLocal,
+  lerPendencias,
+  temAlteracoesNaoSalvas,
+} from "@/lib/sincronizacao";
 import { CONFIG_PADRAO, useStore } from "@/store/useStore";
 import { criarLote, criarMatriz } from "./fixtures";
 
@@ -73,6 +85,7 @@ beforeEach(async () => {
   banco.reprodutores = [];
   banco.lotes = [];
   banco.configuracoes = [];
+  semInternet = false;
   localStorage.clear();
   estado().resetarDados();
 });
@@ -147,5 +160,83 @@ describe("iniciarSincronizacao", () => {
     expect(banco.lotes).toHaveLength(0);
     expect(estado().lotes).toHaveLength(0);
     expect(lerDonoLocal()).toBe("user-b");
+  });
+});
+
+describe("alterações sem internet não se perdem", () => {
+  const matrizNaNuvem = (id: string, identificador: string) => ({ id, user_id: "user-a", dados: criarMatriz({ id, identificador }) });
+
+  it("edição feita sem internet sobe na próxima abertura, sem apagar o que veio de outro aparelho", async () => {
+    banco.matrizes = [matrizNaNuvem("m1", "M-1")];
+    iniciarSincronizacao("user-a", () => {});
+    await esperar(20);
+
+    // cai a internet e a pessoa edita
+    semInternet = true;
+    estado().updateMatriz("m1", { identificador: "M-1-EDITADA-NO-CAMPO" });
+    estado().addLote({ nome: "LOTE-OFFLINE", matrizId: "m1", dataParto: "2026-10-20", nascidosVivos: 9, nascidosMortos: 0, status: "Ativo" });
+    await esperar(900);
+    expect(temAlteracoesNaoSalvas()).toBe(true);
+    expect(lerPendencias("user-a")?.salvar.matrizes).toContain("m1");
+
+    // fecha o app sem internet
+    await encerrarSincronizacao();
+
+    // enquanto isso, outro aparelho cadastrou outra matriz na nuvem
+    banco.matrizes.push(matrizNaNuvem("m2", "M-2-OUTRO-APARELHO"));
+
+    // volta a internet e abre de novo
+    semInternet = false;
+    iniciarSincronizacao("user-a", () => {});
+    await esperar(30);
+
+    const nomes = estado().matrizes.map((m) => m.identificador).sort();
+    expect(nomes).toEqual(["M-1-EDITADA-NO-CAMPO", "M-2-OUTRO-APARELHO"]);
+    expect(estado().lotes.map((l) => l.nome)).toEqual(["LOTE-OFFLINE"]);
+    expect((banco.matrizes.find((l) => l.id === "m1")?.dados as { identificador: string }).identificador).toBe("M-1-EDITADA-NO-CAMPO");
+    expect(banco.lotes).toHaveLength(1);
+    expect(lerPendencias("user-a")).toBeNull();
+  });
+
+  it("abrindo sem internet mostra o que está no aparelho e envia quando a internet volta", async () => {
+    banco.matrizes = [matrizNaNuvem("m1", "M-1")];
+    iniciarSincronizacao("user-a", () => {});
+    await esperar(20);
+    await encerrarSincronizacao();
+
+    semInternet = true;
+    const pronto = vi.fn();
+    iniciarSincronizacao("user-a", pronto);
+    await esperar(20);
+    expect(pronto).toHaveBeenCalledTimes(1);
+    expect(estado().matrizes.map((m) => m.identificador)).toEqual(["M-1"]);
+
+    estado().updateMatriz("m1", { identificador: "M-1-SEM-SINAL" });
+    await esperar(900);
+    expect(lerPendencias("user-a")?.salvar.matrizes).toContain("m1");
+
+    semInternet = false;
+    await encerrarSincronizacao(); // força a nova tentativa na hora
+    expect((banco.matrizes[0].dados as { identificador: string }).identificador).toBe("M-1-SEM-SINAL");
+    expect(pronto).toHaveBeenCalledTimes(1);
+  });
+
+  it("pendências de uma conta nunca vão para outra conta", async () => {
+    banco.matrizes = [matrizNaNuvem("m1", "M-DO-A")];
+    iniciarSincronizacao("user-a", () => {});
+    await esperar(20);
+    semInternet = true;
+    estado().updateMatriz("m1", { identificador: "M-DO-A-EDITADA" });
+    await esperar(900);
+    await encerrarSincronizacao();
+
+    // outra pessoa entra no mesmo navegador (conta B, sem nada na nuvem)
+    semInternet = false;
+    banco.matrizes = [];
+    iniciarSincronizacao("user-b", () => {});
+    await esperar(20);
+    expect(estado().matrizes).toHaveLength(0);
+    expect(banco.matrizes).toHaveLength(0);
+    expect(lerPendencias("user-b")).toBeNull();
   });
 });

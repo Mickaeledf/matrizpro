@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Ban, CalendarPlus, CheckCircle2, KeyRound, Loader2, Mail, RefreshCw, Search, Unlock } from "lucide-react";
 import { useAuth } from "@/contexts/auth";
+import { Captcha, captchaAtivo } from "@/components/Captcha";
 import { supabase } from "@/lib/supabase";
 import { calcularSituacao, Plano, SituacaoAssinatura, useAssinatura } from "@/lib/assinatura";
 import { Card, CardContent } from "@/components/ui/card";
@@ -53,6 +54,7 @@ export default function AssinantesPage() {
   const admin = useAssinatura((s) => s.admin);
   const navigate = useNavigate();
   const { enviarLinkRedefinicao } = useAuth();
+  const captchaAdmin = useRef<string | null>(null);
   const verificando = useAssinatura((s) => s.situacao.tipo === "carregando");
   const { confirmar, dialog } = useConfirm();
   const [lista, setLista] = useState<Assinante[]>([]);
@@ -252,18 +254,30 @@ export default function AssinantesPage() {
                               variant="ghost"
                               className="gap-1"
                               title="Enviar para o email da pessoa um link para criar uma nova senha"
-                              onClick={() =>
+                              onClick={() => {
+                                captchaAdmin.current = null;
                                 confirmar({
                                   titulo: `Enviar link de nova senha para ${a.email}?`,
-                                  descricao: "A pessoa recebe um email com um link para criar uma nova senha. A senha atual continua valendo até ela trocar.",
+                                  descricao: (
+                                    <>
+                                      A pessoa recebe um email com um link para criar uma nova senha. A senha atual continua valendo até ela trocar.
+                                      <div className="mt-3">
+                                        <Captcha onToken={(t) => (captchaAdmin.current = t)} />
+                                      </div>
+                                    </>
+                                  ),
                                   confirmar: "Enviar link",
                                   onConfirm: async () => {
-                                    const erro = await enviarLinkRedefinicao(a.email);
+                                    if (captchaAtivo && !captchaAdmin.current) {
+                                      toast.error("Aguarde a verificação anti-robô terminar e tente de novo.");
+                                      return;
+                                    }
+                                    const erro = await enviarLinkRedefinicao(a.email, captchaAdmin.current);
                                     if (erro) toast.error(erro);
                                     else toast.success(`Link enviado para ${a.email}.`);
                                   },
-                                })
-                              }
+                                });
+                              }}
                             >
                               <KeyRound className="h-4 w-4" /> Senha
                             </Button>

@@ -3,7 +3,7 @@ import { LayoutDashboard, GitBranch, Layers, BarChart3, FileText, Settings, LogO
 import { cn } from "@/lib/utils";
 import { useStore } from "@/store/useStore";
 import { useAuth } from "@/contexts/auth";
-import { useStatusSincronizacao } from "@/lib/sincronizacao";
+import { temAlteracoesNaoSalvas, useStatusSincronizacao } from "@/lib/sincronizacao";
 import { acessoLiberado, planoCompleto, useAssinatura } from "@/lib/assinatura";
 import { abaDoPlanoPago } from "@/config/negocio";
 import { contarNaoLidas, useMensagens } from "@/lib/mensagens";
@@ -152,6 +152,13 @@ export function AppSidebar({ onNavigate, className }: { onNavigate?: () => void;
         <button
           type="button"
           onClick={() => {
+            if (
+              temAlteracoesNaoSalvas() &&
+              !window.confirm(
+                "Algumas alterações ainda não chegaram à nuvem (sem internet?).\n\nSe sair agora, elas serão perdidas. Quer sair mesmo assim?"
+              )
+            )
+              return;
             onNavigate?.();
             sair();
           }}

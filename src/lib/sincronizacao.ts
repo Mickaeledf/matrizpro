@@ -157,6 +157,94 @@ export async function baixarDados(): Promise<DadosApp | null> {
 
 const mensagemErro = (e: unknown) => (e instanceof Error ? e.message : "Erro desconhecido");
 
+// ---------------------------------------------------------------------------
+// Pendências: o que foi alterado e ainda NÃO foi confirmado na nuvem.
+// Fica anotado no navegador (separado por usuário) para sobreviver a falta de
+// internet, página fechada às pressas ou celular que desligou. Na próxima vez
+// que a conta abrir com internet, isso sobe ANTES de baixar a versão da nuvem.
+// ---------------------------------------------------------------------------
+interface Pendencias {
+  salvar: Record<Colecao, string[]>;
+  excluir: Record<Colecao, string[]>;
+  configuracoes: boolean;
+}
+
+const chavePendencias = (userId: string) => `matrizpro-pendente-${userId}`;
+const vazias = (): Pendencias => ({
+  salvar: { matrizes: [], reprodutores: [], lotes: [] },
+  excluir: { matrizes: [], reprodutores: [], lotes: [] },
+  configuracoes: false,
+});
+
+export function lerPendencias(userId: string): Pendencias | null {
+  try {
+    const bruto = localStorage.getItem(chavePendencias(userId));
+    return bruto ? { ...vazias(), ...(JSON.parse(bruto) as Pendencias) } : null;
+  } catch {
+    return null;
+  }
+}
+
+export function limparPendencias(userId: string) {
+  try {
+    localStorage.removeItem(chavePendencias(userId));
+  } catch {
+    // armazenamento indisponível
+  }
+}
+
+/** Soma as mudanças às pendências já anotadas. */
+function anotarPendencias(userId: string, m: Mudancas) {
+  if (semMudancas(m)) return;
+  const p = lerPendencias(userId) ?? vazias();
+  for (const c of NOMES_COLECOES) {
+    const salvos = (m.salvar[c] as { id: string }[]).map((x) => x.id);
+    const excluidos = new Set(m.excluir[c]);
+    p.salvar[c] = [...new Set([...p.salvar[c], ...salvos])].filter((id) => !excluidos.has(id));
+    p.excluir[c] = [...new Set([...p.excluir[c].filter((id) => !salvos.includes(id)), ...excluidos])];
+  }
+  p.configuracoes = p.configuracoes || m.configuracoes;
+  try {
+    localStorage.setItem(chavePendencias(userId), JSON.stringify(p));
+  } catch {
+    // sem espaço / bloqueado: segue só com a memória da página
+  }
+}
+
+/**
+ * Junta a versão da nuvem com o que ficou pendente neste navegador:
+ * o que foi alterado aqui (e não subiu) vale sobre a nuvem; o resto vem da nuvem.
+ */
+export function aplicarPendencias(remoto: DadosApp, local: DadosApp, p: Pendencias): { dados: DadosApp; mudancas: Mudancas } {
+  const mudancas: Mudancas = {
+    salvar: { matrizes: [], reprodutores: [], lotes: [] },
+    excluir: { matrizes: [...p.excluir.matrizes], reprodutores: [...p.excluir.reprodutores], lotes: [...p.excluir.lotes] },
+    configuracoes: p.configuracoes,
+  };
+  const juntar = <T extends { id: string }>(c: Colecao, nuvem: T[], aqui: T[]): T[] => {
+    const alterados = aqui.filter((x) => p.salvar[c].includes(x.id));
+    (mudancas.salvar[c] as unknown as T[]).push(...alterados);
+    const trocar = new Map(alterados.map((x) => [x.id, x]));
+    const excluir = new Set(p.excluir[c]);
+    const base = nuvem.filter((x) => !excluir.has(x.id)).map((x) => trocar.get(x.id) ?? x);
+    const novos = alterados.filter((x) => !nuvem.some((n) => n.id === x.id));
+    return [...base, ...novos];
+  };
+  return {
+    dados: {
+      matrizes: juntar("matrizes", remoto.matrizes, local.matrizes),
+      reprodutores: juntar("reprodutores", remoto.reprodutores, local.reprodutores),
+      lotes: juntar("lotes", remoto.lotes, local.lotes),
+      configuracoes: p.configuracoes ? local.configuracoes : remoto.configuracoes,
+    },
+    mudancas,
+  };
+}
+
+/** Há alterações desta sessão que ainda não chegaram à nuvem? (usado no aviso ao sair) */
+let verificarPendentesDaSessao: () => boolean = () => false;
+export const temAlteracoesNaoSalvas = () => verificarPendentesDaSessao();
+
 const dadosAtuais = (): DadosApp => {
   const s = useStore.getState();
   return { matrizes: s.matrizes, reprodutores: s.reprodutores, lotes: s.lotes, configuracoes: s.configuracoes };
@@ -172,21 +260,35 @@ let sessaoAtiva: { encerrar: (salvarPendentes: boolean) => Promise<void> } | nul
 export function iniciarSincronizacao(userId: string, aoCarregar: () => void) {
   let ativo = true;
   let snapshot: DadosApp | null = null; // último estado confirmado no banco
+  let carregado = false; // a versão da nuvem já foi baixada nesta sessão?
+  let avisouCarga = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let fila: Promise<void> = Promise.resolve();
 
+  const pendentesDaSessao = () => !!snapshot && !semMudancas(calcularMudancas(snapshot, dadosAtuais()));
+
   const salvar = async () => {
     if (!snapshot) return;
+    // Ainda não conseguiu baixar a nuvem (estava sem internet): tenta de novo, juntando o que ficou pendente
+    if (!carregado) {
+      anotarPendencias(userId, calcularMudancas(snapshot, dadosAtuais()));
+      await carregar();
+      return;
+    }
     const atual = dadosAtuais();
     const mudancas = calcularMudancas(snapshot, atual);
     if (semMudancas(mudancas)) return;
+    anotarPendencias(userId, mudancas);
     definirStatus("salvando");
     try {
       await enviarMudancas(userId, mudancas, atual);
       snapshot = atual;
+      limparPendencias(userId);
+      // o que mudou enquanto enviava continua anotado
+      anotarPendencias(userId, calcularMudancas(snapshot, dadosAtuais()));
       if (ativo) definirStatus("sincronizado");
     } catch (e) {
-      definirStatus("erro", `Não foi possível salvar na nuvem: ${mensagemErro(e)}`);
+      definirStatus("erro", `Sem conexão com a nuvem — suas alterações estão guardadas neste aparelho e serão enviadas assim que a internet voltar. (${mensagemErro(e)})`);
       // tenta de novo em 10 s (o snapshot não mudou, então nada se perde)
       if (ativo) timer = setTimeout(agendar, 10_000);
     }
@@ -206,10 +308,17 @@ export function iniciarSincronizacao(userId: string, aoCarregar: () => void) {
   const carregar = async () => {
     definirStatus("carregando");
     const donoLocal = lerDonoLocal();
+    // Pendências só valem se o cache deste navegador for desta mesma conta
+    const pendencias = donoLocal === userId ? lerPendencias(userId) : null;
     try {
       const remoto = await baixarDados();
       if (!ativo) return;
-      if (remoto) {
+      if (remoto && pendencias) {
+        // Nuvem + o que ficou pendente aqui (alterações feitas sem internet)
+        const { dados, mudancas } = aplicarPendencias(remoto, dadosAtuais(), pendencias);
+        if (!semMudancas(mudancas)) await enviarMudancas(userId, mudancas, dados);
+        useStore.getState().importarDados(dados);
+      } else if (remoto) {
         // A nuvem é a fonte da verdade
         useStore.getState().importarDados(remoto);
       } else if (donoLocal !== userId) {
@@ -222,18 +331,49 @@ export function iniciarSincronizacao(userId: string, aoCarregar: () => void) {
         const mudancas = calcularMudancas({ matrizes: [], reprodutores: [], lotes: [], configuracoes: CONFIG_PADRAO }, local);
         if (!semMudancas(mudancas)) await enviarMudancas(userId, mudancas, local);
       }
+      limparPendencias(userId);
       snapshot = dadosAtuais();
+      carregado = true;
       definirDonoLocal(userId);
       definirStatus("sincronizado");
     } catch (e) {
       if (!ativo) return;
       // Sem conexão: usa o cache local apenas se ele for desta conta
       if (donoLocal !== userId) useStore.getState().resetarDados();
+      definirDonoLocal(userId);
       snapshot = dadosAtuais();
-      definirStatus("erro", `Não foi possível carregar os dados da nuvem: ${mensagemErro(e)}`);
+      definirStatus("erro", `Sem conexão com a nuvem — mostrando o que está guardado neste aparelho. Tentando de novo… (${mensagemErro(e)})`);
+      timer = setTimeout(agendar, 15_000);
     }
-    if (ativo) aoCarregar();
+    if (ativo && !avisouCarga) {
+      avisouCarga = true;
+      aoCarregar();
+    }
   };
+
+  // Página indo embora (fechar aba, trocar de app no celular): anota o que não subiu e tenta enviar já
+  const aoEsconder = () => {
+    if (!ativo || !snapshot) return;
+    anotarPendencias(userId, calcularMudancas(snapshot, dadosAtuais()));
+    clearTimeout(timer);
+    agendar();
+  };
+  const aoMudarVisibilidade = () => {
+    if (document.visibilityState === "hidden") aoEsconder();
+  };
+  // Aviso do navegador ao fechar com algo ainda não salvo
+  const aoSairDaPagina = (e: BeforeUnloadEvent) => {
+    if (!ativo || !pendentesDaSessao()) return;
+    aoEsconder();
+    e.preventDefault();
+    e.returnValue = "";
+  };
+  if (typeof window !== "undefined") {
+    window.addEventListener("pagehide", aoEsconder);
+    window.addEventListener("beforeunload", aoSairDaPagina);
+    document.addEventListener("visibilitychange", aoMudarVisibilidade);
+  }
+  verificarPendentesDaSessao = pendentesDaSessao;
 
   const controle = {
     encerrar: async (salvarPendentes: boolean) => {
@@ -244,6 +384,12 @@ export function iniciarSincronizacao(userId: string, aoCarregar: () => void) {
       }
       ativo = false;
       cancelarInscricao();
+      if (typeof window !== "undefined") {
+        window.removeEventListener("pagehide", aoEsconder);
+        window.removeEventListener("beforeunload", aoSairDaPagina);
+        document.removeEventListener("visibilitychange", aoMudarVisibilidade);
+      }
+      if (verificarPendentesDaSessao === pendentesDaSessao) verificarPendentesDaSessao = () => false;
       if (sessaoAtiva === controle) sessaoAtiva = null;
     },
   };

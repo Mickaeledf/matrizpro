@@ -2,11 +2,12 @@ import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase, supabaseConfigurado } from "@/lib/supabase";
 import { traduzirErroAuth } from "@/lib/authValidacao";
-import { encerrarSincronizacao, definirDonoLocal } from "@/lib/sincronizacao";
+import { encerrarSincronizacao, definirDonoLocal, limparPendencias } from "@/lib/sincronizacao";
 import { useStore } from "@/store/useStore";
 import { useAssinatura } from "@/lib/assinatura";
 import { useMensagens } from "@/lib/mensagens";
 import { AuthContext, AuthContextValue } from "./auth";
+import { VERSAO_TERMOS } from "@/content/legal";
 
 /** Para onde o link de confirmação do email leva o usuário de volta. */
 const urlRetornoConfirmacao = () => `${window.location.origin}/`;
@@ -45,16 +46,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => data.subscription.unsubscribe();
   }, []);
 
-  const entrar = useCallback(async (email: string, senha: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: senha });
+  const entrar = useCallback(async (email: string, senha: string, captcha?: string | null) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password: senha,
+      options: { captchaToken: captcha ?? undefined },
+    });
     return error ? traduzirErroAuth(error) : null;
   }, []);
 
-  const cadastrar = useCallback(async (email: string, senha: string) => {
+  const cadastrar = useCallback(async (email: string, senha: string, captcha?: string | null) => {
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password: senha,
-      options: { emailRedirectTo: urlRetornoConfirmacao() },
+      options: {
+        emailRedirectTo: urlRetornoConfirmacao(),
+        captchaToken: captcha ?? undefined,
+        // Prova do aceite (LGPD/CDC): qual versão dos Termos e quando
+        data: { termos_versao: VERSAO_TERMOS, termos_aceitos_em: new Date().toISOString() },
+      },
     });
 
     if (error) return { erro: traduzirErroAuth(error), precisaConfirmar: false };
@@ -79,17 +89,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { erro: null, precisaConfirmar: true };
   }, []);
 
-  const reenviarConfirmacao = useCallback(async (email: string) => {
+  const reenviarConfirmacao = useCallback(async (email: string, captcha?: string | null) => {
     const { error } = await supabase.auth.resend({
       type: "signup",
       email: email.trim(),
-      options: { emailRedirectTo: urlRetornoConfirmacao() },
+      options: { emailRedirectTo: urlRetornoConfirmacao(), captchaToken: captcha ?? undefined },
     });
     return error ? traduzirErroAuth(error) : null;
   }, []);
 
-  const enviarLinkRedefinicao = useCallback(async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: urlRedefinirSenha() });
+  const enviarLinkRedefinicao = useCallback(async (email: string, captcha?: string | null) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: urlRedefinirSenha(),
+      captchaToken: captcha ?? undefined,
+    });
     return error ? traduzirErroAuth(error) : null;
   }, []);
 
@@ -102,6 +115,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const sair = useCallback(async () => {
     // 1) Grava na nuvem o que ainda estiver pendente e para a sincronização
     await encerrarSincronizacao();
+    const { data } = await supabase.auth.getSession();
+    if (data.session) limparPendencias(data.session.user.id);
     await supabase.auth.signOut();
     // 2) Limpa os dados deste navegador (o próximo usuário não os verá)
     useStore.getState().resetarDados();
